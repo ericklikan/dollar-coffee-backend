@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 )
 
 type MenuItem struct {
@@ -26,6 +27,13 @@ func main() {
 	_ = json.Unmarshal([]byte(file), &data)
 	fmt.Println(data)
 
+	port := os.Getenv("PORT")
+
+	if port == "" {
+		fmt.Println("running in debug mode")
+		port = "5000"
+	}
+
 	http.HandleFunc("/menu", func(w http.ResponseWriter, r *http.Request) {
 		setupResponse(&w, r)
 
@@ -37,5 +45,5 @@ func main() {
 		}
 	})
 
-	log.Fatal(http.ListenAndServe(":5000", nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), nil))
 }
