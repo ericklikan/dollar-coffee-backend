@@ -2,11 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
 )
 
 type MenuItem struct {
-	Coffee string `json:"name"`
+	Coffee string `json:"coffee"`
 	Type   string `json:"type"`
 }
 
@@ -17,16 +20,22 @@ func setupResponse(w *http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+	file, _ := ioutil.ReadFile("menu.json")
+
+	data := []MenuItem{}
+	_ = json.Unmarshal([]byte(file), &data)
+	fmt.Println(data)
+
 	http.HandleFunc("/menu", func(w http.ResponseWriter, r *http.Request) {
 		setupResponse(&w, r)
-		item := MenuItem{
-			Coffee: "Kick Ass",
-			Type:   "Iced Coffee",
-		}
+
 		w.Header().Add("Content-Type", "application/json")
 
-		json.NewEncoder(w).Encode([]MenuItem{item, item})
+		err := json.NewEncoder(w).Encode(data)
+		if err != nil {
+			fmt.Println(err)
+		}
 	})
 
-	http.ListenAndServe(":5000", nil)
+	log.Fatal(http.ListenAndServe(":5000", nil))
 }
