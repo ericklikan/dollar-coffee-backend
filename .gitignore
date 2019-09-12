@@ -1,3 +1,2 @@
 # don't add generated file by go build command
-dollar-coffee-backend
 /build_dir

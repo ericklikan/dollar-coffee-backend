@@ -1,14 +1,17 @@
 [
   {
     "coffee": "Kick Ass",
-    "types": ["Normal Coffee", "Strong Coffee", "Iced Coffee"]
+    "types": ["Normal", "Espresso", "Iced"],
+    "description": "Sweet, Smoky, Audacious"
   },
   {
     "coffee": "Smart Ass",
-    "types": ["Normal Coffee", "Strong Coffee", "Iced Coffee"]
+    "types": ["Normal", "Espresso", "Iced"],
+    "description": "Cheeky, Bright, Precocious"
   },
   {
     "coffee": "Village Trader",
-    "types": ["Normal Coffee", "Strong Coffee", "Iced Coffee"]
+    "types": ["Normal", "Espresso", "Iced"],
+    "description": "Rich, Roasty, Cocoa"
   }
 ]

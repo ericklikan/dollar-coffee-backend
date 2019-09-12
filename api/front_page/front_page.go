@@ -5,22 +5,29 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 )
 
-var file []byte
+var raw []byte
 
 type MenuItem struct {
-	Coffee string   `json:"coffee"`
-	Types  []string `json:"types"`
+	Coffee      string   `json:"coffee"`
+	Types       []string `json:"types"`
+	Description string   `json:"description"`
 }
 
 func Setup(pathPrefix string, router *mux.Router) error {
-	var err error
 	subRouter := router.PathPrefix(pathPrefix).Subrouter()
 
-	file, err = ioutil.ReadFile("menu.json")
+	file, err := os.Open("api/front_page/menu.json")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	raw, err = ioutil.ReadAll(file)
 	if err != nil {
 		return err
 	}
@@ -31,8 +38,7 @@ func Setup(pathPrefix string, router *mux.Router) error {
 
 func MenuHandler(w http.ResponseWriter, r *http.Request) {
 	data := []MenuItem{}
-	_ = json.Unmarshal([]byte(file), &data)
-	fmt.Println(data)
+	_ = json.Unmarshal(raw, &data)
 
 	w.Header().Add("Content-Type", "application/json")
 	err := json.NewEncoder(w).Encode(data)
