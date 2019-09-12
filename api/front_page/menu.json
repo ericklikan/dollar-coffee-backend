@@ -1,0 +1,14 @@
+[
+  {
+    "coffee": "Kick Ass",
+    "types": ["Normal Coffee", "Strong Coffee", "Iced Coffee"]
+  },
+  {
+    "coffee": "Smart Ass",
+    "types": ["Normal Coffee", "Strong Coffee", "Iced Coffee"]
+  },
+  {
+    "coffee": "Village Trader",
+    "types": ["Normal Coffee", "Strong Coffee", "Iced Coffee"]
+  }
+]

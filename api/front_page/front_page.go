@@ -12,8 +12,8 @@ import (
 var file []byte
 
 type MenuItem struct {
-	Coffee string `json:"coffee"`
-	Type   string `json:"type"`
+	Coffee string   `json:"coffee"`
+	Types  []string `json:"types"`
 }
 
 func Setup(pathPrefix string, router *mux.Router) error {
@@ -32,6 +32,7 @@ func Setup(pathPrefix string, router *mux.Router) error {
 func MenuHandler(w http.ResponseWriter, r *http.Request) {
 	data := []MenuItem{}
 	_ = json.Unmarshal([]byte(file), &data)
+	fmt.Println(data)
 
 	w.Header().Add("Content-Type", "application/json")
 	err := json.NewEncoder(w).Encode(data)
