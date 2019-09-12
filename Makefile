@@ -18,6 +18,6 @@ clean:
 	$(GOCLEAN)
 	rm -rf $(BUILD_DIR)
 run:
-	$(GORUN) app.go
+	$(GORUN) main.go
 deps:
 	$(GOGET) ./...
