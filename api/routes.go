@@ -3,7 +3,7 @@ package api
 import (
 	"fmt"
 
-	frontPage "github.com/ericklikan/dollar-coffee-backend/api/front"
+	frontPage "github.com/ericklikan/dollar-coffee-backend/api/front_page"
 	"github.com/gorilla/mux"
 )
 

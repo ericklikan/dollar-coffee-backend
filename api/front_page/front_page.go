@@ -1,4 +1,4 @@
-package front
+package front_page
 
 import (
 	"encoding/json"
