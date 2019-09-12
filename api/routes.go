@@ -15,6 +15,7 @@ func NewServer(router *mux.Router) (*Server, error) {
 	server := Server{
 		Router: router,
 	}
+
 	err := frontPage.Setup("/front_page", server.Router)
 	if err != nil {
 		//TODO replace with log
