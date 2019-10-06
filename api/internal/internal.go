@@ -1,10 +1,13 @@
 package internal
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 
 	"github.com/ericklikan/dollar-coffee-backend/api/util"
+	"github.com/ericklikan/dollar-coffee-backend/models"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
@@ -30,6 +33,8 @@ func Setup(router *mux.Router, db *gorm.DB) error {
 		PathPrefix(prefix).
 		Subrouter()
 
+	internal.Db = db
+	internal.Router.Use(util.AuthMiddleware)
 	// Route to update and delete any coffees
 	internal.Router.HandleFunc("/coffee", internal.coffeeHandler).Methods("POST", "DELETE")
 
@@ -38,13 +43,41 @@ func Setup(router *mux.Router, db *gorm.DB) error {
 	return nil
 }
 
+func validateAdmin(ctx context.Context) bool {
+	log.Debug(ctx.Value("role"))
+	return ctx.Value("role") == "admin"
+}
+
 func (sr *internalSubrouter) coffeeHandler(w http.ResponseWriter, r *http.Request) {
 	logger := log.WithFields(log.Fields{
 		"request": "InternalCoffeeHandler",
 		"method":  r.Method,
 	})
-	logger.Warn("Unimplemented")
-	util.Respond(w, util.Message("Unimplemented"))
+	if !validateAdmin(r.Context()) {
+		w.WriteHeader(http.StatusForbidden)
+		util.Respond(w, util.Message("Invalid role type"))
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	var coffeeInfo models.Coffee
+	err := decoder.Decode(&coffeeInfo)
+	if err != nil {
+		logger.WithError(err).Warn()
+		w.WriteHeader(http.StatusInternalServerError)
+		util.Respond(w, util.Message(err.Error()))
+		return
+	}
+
+	err = coffeeInfo.Create(sr.Db)
+	if err != nil {
+		logger.WithError(err).Warn()
+		w.WriteHeader(http.StatusInternalServerError)
+		util.Respond(w, util.Message(err.Error()))
+		return
+	}
+
+	util.Respond(w, util.Message("Created new Coffee"))
 }
 
 func (sr *internalSubrouter) purchaseHandler(w http.ResponseWriter, r *http.Request) {

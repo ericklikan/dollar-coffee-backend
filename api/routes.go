@@ -2,7 +2,8 @@ package api
 
 import (
 	"github.com/ericklikan/dollar-coffee-backend/api/auth"
-	"github.com/ericklikan/dollar-coffee-backend/api/front_page"
+	"github.com/ericklikan/dollar-coffee-backend/api/internal"
+	"github.com/ericklikan/dollar-coffee-backend/api/menu"
 	"github.com/ericklikan/dollar-coffee-backend/api/purchases"
 
 	"github.com/gorilla/mux"
@@ -18,16 +19,25 @@ func NewServer(router *mux.Router, db *gorm.DB) error {
 		Router: router,
 	}
 
-	err := front_page.Setup(server.Router, db)
+	err := menu.Setup(server.Router, db)
 	if err != nil {
 		return err
 	}
 
-	purchases.Setup(server.Router, db)
+	err = purchases.Setup(server.Router, db)
+	if err != nil {
+		return err
+	}
 
 	err = auth.Setup(server.Router, db)
 	if err != nil {
 		return err
 	}
+
+	err = internal.Setup(server.Router, db)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

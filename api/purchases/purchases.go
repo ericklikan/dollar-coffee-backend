@@ -1,6 +1,7 @@
 package purchases
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/ericklikan/dollar-coffee-backend/api/util"
@@ -11,18 +12,24 @@ import (
 
 const prefix = "/purchases"
 
-func Setup(router *mux.Router, db *gorm.DB) {
+func Setup(router *mux.Router, db *gorm.DB) error {
+	if db == nil || router == nil {
+		err := errors.New("db or router is nil")
+		log.WithError(err).Warn()
+		return err
+	}
+
 	subRouter := router.
 		PathPrefix(prefix).
-		Methods("GET", "POST").
 		Subrouter()
 
-	// Set up auth middlewate
+	// Set up auth middleware
 	subRouter.Use(util.AuthMiddleware)
 
 	// route for people to put in purchases, they should not be able to
 	// put amount paid, this is done on internal route
 	subRouter.HandleFunc("/purchase", PurchaseHandler).Methods("POST")
+	return nil
 }
 
 func PurchaseHandler(w http.ResponseWriter, r *http.Request) {

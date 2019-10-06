@@ -54,20 +54,23 @@ func (user *User) Validate(db *gorm.DB) error {
 	return nil
 }
 
-func (user *User) Create(db *gorm.DB) (*User, error) {
+func (user *User) Create(db *gorm.DB) error {
 	if err := user.Validate(db); err != nil {
-		return nil, err
+		return err
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	user.Password = string(hashedPassword)
 
-	dbTxInfo := db.Create(user)
-	if dbTxInfo.Error != nil {
-		return nil, err
+	// Generate UUID
+	user.ID = uuid.New()
+
+	err = db.Create(user).Error
+	if err != nil {
+		return err
 	}
 
 	//Create new JWT token for the newly registered account and default to role type as user
@@ -81,5 +84,40 @@ func (user *User) Create(db *gorm.DB) (*User, error) {
 
 	user.Password = "" //delete password
 
-	return user, nil
+	return nil
+}
+
+func (user *User) Login(db *gorm.DB) error {
+	dbUser := &User{}
+	err := db.Table("users").Where("email = ?", user.Email).First(dbUser).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return errors.New("Email not found")
+		}
+		return errors.New("Connection Error")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(user.Password))
+	if err != nil && err == bcrypt.ErrMismatchedHashAndPassword {
+		return errors.New("Invalid login credentials. Please try again")
+	}
+
+	// Queried user is now valid
+	*user = *dbUser
+	user.Password = ""
+
+	//Create JWT token
+	tk := &Token{
+		UserId: user.ID,
+		Role:   user.Role,
+	}
+	token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), tk)
+	tokenString, err := token.SignedString([]byte(os.Getenv("token_password")))
+	if err != nil {
+		return err
+	}
+
+	user.Token = tokenString //Store the token in the response
+
+	return nil
 }

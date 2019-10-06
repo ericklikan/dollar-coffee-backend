@@ -17,7 +17,6 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		// token header: `Bearer {token-body}`
 		splitted := strings.Split(tokenHeader, " ")
-
 		if tokenHeader == "" || len(splitted) != 2 {
 			response = Message("Missing/Invalid/Malformed auth token")
 			w.WriteHeader(http.StatusForbidden)
@@ -40,6 +39,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), "user", tk.UserId)
+		ctx = context.WithValue(ctx, "role", tk.Role)
 		r = r.WithContext(ctx)
 		next.ServeHTTP(w, r)
 	})
