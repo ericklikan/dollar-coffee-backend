@@ -1,48 +1,44 @@
 package front_page
 
 import (
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"net/http"
-	"os"
 
+	"github.com/ericklikan/dollar-coffee-backend/api/util"
+	"github.com/ericklikan/dollar-coffee-backend/models"
 	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
+	log "github.com/sirupsen/logrus"
 )
 
-var raw []byte
+const prefix = "/menu"
 
-type MenuItem struct {
-	Coffee      string   `json:"coffee"`
-	Types       []string `json:"types"`
-	Description string   `json:"description"`
+type frontPageRouter struct {
+	util.CommonSubrouter
 }
 
-func Setup(pathPrefix string, router *mux.Router) error {
-	subRouter := router.PathPrefix(pathPrefix).Subrouter()
+func Setup(router *mux.Router, db *gorm.DB) error {
+	subRouter := frontPageRouter{}
+	subRouter.Router = router.PathPrefix(prefix).Subrouter()
+	subRouter.Db = db
 
-	file, err := os.Open("api/front_page/menu.json")
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	raw, err = ioutil.ReadAll(file)
-	if err != nil {
-		return err
-	}
-
-	subRouter.HandleFunc("/menu", MenuHandler)
+	subRouter.Router.HandleFunc("/coffee", subRouter.CoffeeHandler).Methods("GET")
 	return nil
 }
 
-func MenuHandler(w http.ResponseWriter, r *http.Request) {
-	data := []MenuItem{}
-	_ = json.Unmarshal(raw, &data)
+func (router *frontPageRouter) CoffeeHandler(w http.ResponseWriter, r *http.Request) {
+	logger := log.WithFields(log.Fields{
+		"request": "PurchaseHandler",
+		"method":  r.Method,
+	})
 
-	w.Header().Add("Content-Type", "application/json")
-	err := json.NewEncoder(w).Encode(data)
-	if err != nil {
-		fmt.Println(err)
+	coffees := []models.Coffee{}
+	dbTxInfo := router.Db.Table("coffees").Limit(10).Find(&coffees)
+	if dbTxInfo.Error != nil {
+		logger.WithError(dbTxInfo.Error).Warn()
+		util.Respond(w, util.Message("Error getting coffees"))
 	}
+
+	util.Respond(w, map[string]interface{}{
+		"coffees": coffees,
+	})
 }
