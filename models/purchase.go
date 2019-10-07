@@ -16,7 +16,7 @@ type Transaction struct {
 type PurchaseItem struct {
 	gorm.Model
 
-	TransactionId uint `gorm:"column:transaction_id;not null"`
-	CoffeeItem    Coffee
-	TypeOption    string `gorm:"type:varchar"`
+	TransactionId uint   `gorm:"column:transaction_id;not null"`
+	CoffeeId      uint   `gorm:"column:coffee_id;not null"`
+	TypeOption    string `gorm:"type:text"`
 }

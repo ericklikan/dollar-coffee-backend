@@ -23,6 +23,7 @@ func Setup(router *mux.Router, db *gorm.DB) error {
 	subRouter.Db = db
 
 	// Get all the coffees that are available
+	// TODO: refactor page number to page token using coffee ids
 	subRouter.Router.HandleFunc("/coffee", subRouter.CoffeeHandler).Methods("GET")
 	return nil
 }
