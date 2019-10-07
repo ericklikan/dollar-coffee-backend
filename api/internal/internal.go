@@ -43,7 +43,8 @@ func Setup(router *mux.Router, db *gorm.DB) error {
 	// used to delete coffees from the menu
 	internal.Router.HandleFunc("/coffee/{coffeeId}", internal.deleteCoffeeHandler).Methods("DELETE")
 
-	// Route to update amount paid on purchases and to view all purchases
+	// Route to update amount paid on purchases
+	// Requires param: "amountPaid" in body
 	internal.Router.HandleFunc("/purchase/{purchaseId}", internal.purchaseHandler).Methods("PATCH")
 	return nil
 }
@@ -95,9 +96,9 @@ func (sr *internalSubrouter) deleteCoffeeHandler(w http.ResponseWriter, r *http.
 		util.Respond(w, util.Message("Invalid role type"))
 		return
 	}
+
 	vars := mux.Vars(r)
 	requestedCoffee := vars["coffeeId"]
-
 	coffeeId, err := strconv.Atoi(requestedCoffee)
 	if err != nil {
 		logger.Warn("Error parsing id")
@@ -134,6 +135,10 @@ func (sr *internalSubrouter) deleteCoffeeHandler(w http.ResponseWriter, r *http.
 	util.Respond(w, util.Message("Successfully deleted coffee"))
 }
 
+type PurchaseUpdateRequest struct {
+	AmountPaid float32 `json:"amountPaid"`
+}
+
 func (sr *internalSubrouter) purchaseHandler(w http.ResponseWriter, r *http.Request) {
 	logger := log.WithFields(log.Fields{
 		"request": "InternalPurchaseHandler",
@@ -145,8 +150,51 @@ func (sr *internalSubrouter) purchaseHandler(w http.ResponseWriter, r *http.Requ
 		util.Respond(w, util.Message("Invalid role type"))
 		return
 	}
+	vars := mux.Vars(r)
+	requestedPurchase := vars["purchaseId"]
+	txId, err := strconv.Atoi(requestedPurchase)
+	if err != nil {
+		logger.Warn("Error parsing id")
+		w.WriteHeader(http.StatusBadRequest)
+		util.Respond(w, util.Message("Error parsing coffee id"))
+		return
+	}
 
-	logger.Warn("Unimplemented")
-	w.WriteHeader(http.StatusNotImplemented)
-	util.Respond(w, util.Message("Unimplemented"))
+	var reqData PurchaseUpdateRequest
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&reqData)
+	if err != nil {
+		logger.WithError(err).Warn()
+		w.WriteHeader(http.StatusInternalServerError)
+		util.Respond(w, util.Message(err.Error()))
+		return
+	}
+
+	transaction := models.Transaction{}
+	err = sr.Db.Table("transactions").Where("ID = ?", txId).First(&transaction).Error
+	if err != nil {
+		logger.WithError(err).Warn("Database Error")
+
+		if err == gorm.ErrRecordNotFound {
+			w.WriteHeader(http.StatusNotFound)
+			util.Respond(w, util.Message("Not Found"))
+			return
+		}
+
+		w.WriteHeader(http.StatusInternalServerError)
+		util.Respond(w, util.Message("Internal Error"))
+		return
+	}
+
+	transaction.AmountPaid = reqData.AmountPaid
+	err = sr.Db.Save(&transaction).Error
+	if err != nil {
+		logger.WithError(err).Warn("Database Error")
+		w.WriteHeader(http.StatusInternalServerError)
+		util.Respond(w, util.Message("Internal Error"))
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+	util.Respond(w, util.Message("Successfully updated purchase"))
 }

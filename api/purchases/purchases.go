@@ -113,7 +113,7 @@ func (sr *purchaseSubRouter) PurchaseHandler(w http.ResponseWriter, r *http.Requ
 	util.Respond(w, util.Message("Purchase Confirmed"))
 }
 
-type purchaseHistoryResponse struct {
+type PurchaseHistoryResponse struct {
 	ID            uint                  `json:"transactionId"`
 	AmountPaid    float32               `json:"amountPaid"`
 	CreatedAt     time.Time             `json:"purchaseDate"`
@@ -154,11 +154,12 @@ func (sr *purchaseSubRouter) PurchaseHistoryHandler(w http.ResponseWriter, r *ht
 		offset = (pageNum - 1) * pageSize
 	}
 
-	purchases := make([]purchaseHistoryResponse, 0)
+	purchases := make([]PurchaseHistoryResponse, 0)
 	err := sr.Db.
 		Table("transactions").
 		Select([]string{"id", "amount_paid", "created_at"}).
 		Where("user_id = ?", requestedUserId).
+		Order("created_at DESC").
 		Find(&purchases).
 		Limit(pageSize).
 		Offset(offset).
@@ -206,7 +207,6 @@ func (sr *purchaseSubRouter) PurchaseHistoryHandler(w http.ResponseWriter, r *ht
 	}
 
 	response := util.Message("Purchases successfully queried")
-	response["purchase"] = purchases
-	log.Debug(purchases)
+	response["purchases"] = purchases
 	util.Respond(w, response)
 }

@@ -59,6 +59,12 @@ func (router *menuSubrouter) CoffeeHandler(w http.ResponseWriter, r *http.Reques
 		logger.WithError(err).Warn()
 		util.Respond(w, util.Message("Error getting coffees"))
 	}
+	if len(coffees) == 0 {
+		logger.Warn("coffees not found")
+		w.WriteHeader(http.StatusNotFound)
+		util.Respond(w, util.Message("Couldn't find coffees"))
+		return
+	}
 
 	util.Respond(w, map[string]interface{}{
 		"coffees": coffees,
