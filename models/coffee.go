@@ -10,12 +10,6 @@ type Coffee struct {
 	Description string  `json:"description" gorm:"type:text"`
 }
 
-type CoffeeType struct {
-	gorm.Model
-
-	Type string `gorm:"type:varchar(255);not null"`
-}
-
 func (coffee *Coffee) Create(db *gorm.DB) error {
 	err := db.Create(coffee).Error
 	if err != nil {

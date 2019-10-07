@@ -132,7 +132,7 @@ func (sr *purchaseSubRouter) PurchaseHistoryHandler(w http.ResponseWriter, r *ht
 	if !ok {
 		logger.Warn("Error parsing uuid")
 		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message("Error parsing user id header"))
+		util.Respond(w, util.Message("Error parsing user id path"))
 		return
 	}
 	role, ok := r.Context().Value("role").(string)
@@ -167,6 +167,13 @@ func (sr *purchaseSubRouter) PurchaseHistoryHandler(w http.ResponseWriter, r *ht
 		logger.WithError(err).Warn("Error retrieving values")
 		w.WriteHeader(http.StatusInternalServerError)
 		util.Respond(w, util.Message("Internal Error"))
+		return
+	}
+
+	if len(purchases) == 0 {
+		logger.Warn("purchases not found")
+		w.WriteHeader(http.StatusNotFound)
+		util.Respond(w, util.Message("Couldn't find any purchases"))
 		return
 	}
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/ericklikan/dollar-coffee-backend/api/util"
 	"github.com/ericklikan/dollar-coffee-backend/models"
@@ -94,10 +95,43 @@ func (sr *internalSubrouter) deleteCoffeeHandler(w http.ResponseWriter, r *http.
 		util.Respond(w, util.Message("Invalid role type"))
 		return
 	}
+	vars := mux.Vars(r)
+	requestedCoffee := vars["coffeeId"]
 
-	logger.Warn("Unimplemented")
-	w.WriteHeader(http.StatusNotImplemented)
-	util.Respond(w, util.Message("Unimplemented"))
+	coffeeId, err := strconv.Atoi(requestedCoffee)
+	if err != nil {
+		logger.Warn("Error parsing id")
+		w.WriteHeader(http.StatusBadRequest)
+		util.Respond(w, util.Message("Error parsing coffee id"))
+		return
+	}
+
+	coffee := models.Coffee{}
+	err = sr.Db.Table("coffees").Where("ID = ?", coffeeId).First(&coffee).Error
+	if err != nil {
+		logger.WithError(err).Warn("Database Error")
+
+		if err == gorm.ErrRecordNotFound {
+			w.WriteHeader(http.StatusNotFound)
+			util.Respond(w, util.Message("Not Found"))
+			return
+		}
+
+		w.WriteHeader(http.StatusInternalServerError)
+		util.Respond(w, util.Message("Internal Error"))
+		return
+	}
+
+	err = sr.Db.Delete(&coffee).Error
+	if err != nil {
+		logger.WithError(err).Warn("Error")
+		w.WriteHeader(http.StatusInternalServerError)
+		util.Respond(w, util.Message("Internal Error"))
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+	util.Respond(w, util.Message("Successfully deleted coffee"))
 }
 
 func (sr *internalSubrouter) purchaseHandler(w http.ResponseWriter, r *http.Request) {
