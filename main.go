@@ -51,7 +51,7 @@ func main() {
 }
 
 func setupDatabase() (*gorm.DB, error) {
-	dbUri := os.Getenv("DATABASE_URI")
+	dbUri := os.Getenv("DATABASE_URL")
 
 	log.Infof("Connecting to postgresdb: %s", dbUri)
 	dbConn, err := gorm.Open("postgres", dbUri)
