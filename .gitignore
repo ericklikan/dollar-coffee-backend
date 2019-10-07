@@ -1,5 +1,5 @@
 # don't add generated file by go build command
-/build_dir
+/build
 
 # env variables
 .env
