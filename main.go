@@ -20,7 +20,7 @@ func main() {
 	// Setup environment
 	err := godotenv.Load() //Load .env file
 	if err != nil {
-		log.Fatal(err)
+		log.Warn(err)
 	}
 
 	port := os.Getenv("PORT")
