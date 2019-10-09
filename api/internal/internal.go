@@ -131,7 +131,7 @@ func (sr *internalSubrouter) deleteCoffeeHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	w.WriteHeader(http.StatusAccepted)
+	w.WriteHeader(http.StatusOK)
 	util.Respond(w, util.Message("Successfully deleted coffee"))
 }
 

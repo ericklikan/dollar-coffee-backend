@@ -110,6 +110,7 @@ func (sr *purchaseSubRouter) PurchaseHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
 	util.Respond(w, util.Message("Purchase Confirmed"))
 }
 
@@ -208,5 +209,7 @@ func (sr *purchaseSubRouter) PurchaseHistoryHandler(w http.ResponseWriter, r *ht
 
 	response := util.Message("Purchases successfully queried")
 	response["purchases"] = purchases
+
+	w.WriteHeader(http.StatusOK)
 	util.Respond(w, response)
 }

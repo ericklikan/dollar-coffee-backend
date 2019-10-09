@@ -74,7 +74,8 @@ func (sr *authSubrouter) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	response := util.Message(fmt.Sprintf("Logged In as %s", userInfo.FirstName))
 	response["token"] = userInfo.Token
-	w.WriteHeader(http.StatusAccepted)
+
+	w.WriteHeader(http.StatusOK)
 	util.Respond(w, response)
 }
 
@@ -107,9 +108,7 @@ func (sr *authSubrouter) RegisterHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = userInfo.Create(sr.Db)
-	logger.Info(err)
-	if err != nil {
+	if err := userInfo.Create(sr.Db); err != nil {
 		logger.WithError(err).Warn()
 		w.WriteHeader(http.StatusInternalServerError)
 		util.Respond(w, util.Message(err.Error()))
@@ -118,6 +117,7 @@ func (sr *authSubrouter) RegisterHandler(w http.ResponseWriter, r *http.Request)
 
 	response := util.Message("Created User")
 	response["token"] = userInfo.Token
-	w.WriteHeader(http.StatusAccepted)
+
+	w.WriteHeader(http.StatusOK)
 	util.Respond(w, response)
 }
