@@ -123,7 +123,7 @@ Parameters:
 
 ##### Response
 
-```JSON
+```javascript
 {
     "coffees": [
         {
