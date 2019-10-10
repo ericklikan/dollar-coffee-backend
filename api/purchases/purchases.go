@@ -67,8 +67,7 @@ func (sr *purchaseSubRouter) PurchaseHandler(w http.ResponseWriter, r *http.Requ
 	userId, ok := r.Context().Value("user").(uuid.UUID)
 	if !ok {
 		logger.Warn("Error parsing uuid")
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message("Error parsing user id header"))
+		util.Respond(w, http.StatusInternalServerError, util.Message("Error parsing user id header"))
 		return
 	}
 
@@ -77,15 +76,13 @@ func (sr *purchaseSubRouter) PurchaseHandler(w http.ResponseWriter, r *http.Requ
 	err := decoder.Decode(&reqData)
 	if err != nil {
 		logger.WithError(err).Warn()
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message(err.Error()))
+		util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
 		return
 	}
 
 	if len(reqData.Coffees) == 0 {
-		logger.Warn("Order items can't be 0")
-		w.WriteHeader(http.StatusBadRequest)
-		util.Respond(w, util.Message("Invalid request"))
+		logger.Warn("Order items can't be empty")
+		util.Respond(w, http.StatusBadRequest, util.Message("Invalid request, order can't be empty"))
 		return
 	}
 
@@ -105,13 +102,11 @@ func (sr *purchaseSubRouter) PurchaseHandler(w http.ResponseWriter, r *http.Requ
 	err = sr.Db.Create(&purchase).Error
 	if err != nil {
 		logger.WithError(err).Warn()
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message(err.Error()))
+		util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	util.Respond(w, util.Message("Purchase Confirmed"))
+	util.Respond(w, http.StatusOK, util.Message("Purchase Confirmed"))
 }
 
 type PurchaseHistoryResponse struct {
@@ -132,20 +127,18 @@ func (sr *purchaseSubRouter) PurchaseHistoryHandler(w http.ResponseWriter, r *ht
 	userId, ok := r.Context().Value("user").(uuid.UUID)
 	if !ok {
 		logger.Warn("Error parsing uuid")
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message("Error parsing user id path"))
+		util.Respond(w, http.StatusInternalServerError, util.Message("Error parsing user id path"))
 		return
 	}
 	role, ok := r.Context().Value("role").(string)
 	if !ok {
 		logger.Warn("Error parsing role")
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message("Invalid role"))
+		util.Respond(w, http.StatusInternalServerError, util.Message("Invalid role"))
 		return
 	}
 	if role != "admin" && userId.String() != requestedUserId {
-		w.WriteHeader(http.StatusUnauthorized)
-		util.Respond(w, util.Message("You can't view this information"))
+		logger.Warn("Unauthorized user")
+		util.Respond(w, http.StatusUnauthorized, util.Message("You can't view this information"))
 		return
 	}
 
@@ -167,15 +160,13 @@ func (sr *purchaseSubRouter) PurchaseHistoryHandler(w http.ResponseWriter, r *ht
 		Error
 	if err != nil {
 		logger.WithError(err).Warn("Error retrieving values")
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message("Internal Error"))
+		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
 		return
 	}
 
 	if len(purchases) == 0 {
 		logger.Warn("purchases not found")
-		w.WriteHeader(http.StatusNotFound)
-		util.Respond(w, util.Message("Couldn't find any purchases"))
+		util.Respond(w, http.StatusNotFound, util.Message("Couldn't find any purchases"))
 		return
 	}
 
@@ -192,8 +183,7 @@ func (sr *purchaseSubRouter) PurchaseHistoryHandler(w http.ResponseWriter, r *ht
 		Error
 	if err != nil {
 		logger.WithError(err).Warn("Error retrieving values")
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message("Internal Error"))
+		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
 		return
 	}
 
@@ -210,6 +200,5 @@ func (sr *purchaseSubRouter) PurchaseHistoryHandler(w http.ResponseWriter, r *ht
 	response := util.Message("Purchases successfully queried")
 	response["purchases"] = purchases
 
-	w.WriteHeader(http.StatusOK)
-	util.Respond(w, response)
+	util.Respond(w, http.StatusOK, response)
 }

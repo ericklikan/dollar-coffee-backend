@@ -1,6 +1,6 @@
 module github.com/ericklikan/dollar-coffee-backend
 
-go 1.12
+go 1.13.0
 
 require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
@@ -11,10 +11,13 @@ require (
 	github.com/gorilla/mux v1.7.3
 	github.com/jinzhu/gorm v1.9.11
 	github.com/joho/godotenv v1.3.0
+	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/leodido/go-urn v1.1.0 // indirect
+	github.com/lib/pq v1.2.0 // indirect
 	github.com/ncw/directio v1.0.5
 	github.com/pkg/errors v0.8.1
 	github.com/sirupsen/logrus v1.4.2
-	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+	golang.org/x/crypto v0.0.0-20191002192127-34f69633bfdc
+	golang.org/x/sys v0.0.0-20191009170203-06d7bd2c5f4f // indirect
 	gopkg.in/go-playground/validator.v9 v9.30.0
 )

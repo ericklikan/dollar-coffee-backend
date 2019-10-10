@@ -41,7 +41,7 @@ func Setup(router *mux.Router, db *gorm.DB) error {
 	internal.Router.HandleFunc("/coffee", internal.coffeeHandler).Methods("POST")
 
 	// used to delete coffees from the menu
-	internal.Router.HandleFunc("/coffee/{coffeeId}", internal.deleteCoffeeHandler).Methods("DELETE")
+	internal.Router.HandleFunc("/coffee/{coffeeId}", internal.updateCoffeeHandler).Methods("PATCH", "DELETE")
 
 	// Route to update amount paid on purchases
 	// Requires param: "amountPaid" in body
@@ -59,41 +59,49 @@ func (sr *internalSubrouter) coffeeHandler(w http.ResponseWriter, r *http.Reques
 		"method":  r.Method,
 	})
 	if !validateAdmin(r.Context()) {
-		w.WriteHeader(http.StatusForbidden)
-		util.Respond(w, util.Message("Invalid role type"))
+		util.Respond(w, http.StatusForbidden, util.Message("Invalid role type"))
 		return
 	}
 
 	decoder := json.NewDecoder(r.Body)
 	var coffeeInfo models.Coffee
-	err := decoder.Decode(&coffeeInfo)
-	if err != nil {
+	if err := decoder.Decode(&coffeeInfo); err != nil {
 		logger.WithError(err).Warn()
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message(err.Error()))
+		util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
 		return
 	}
 
-	err = coffeeInfo.Create(sr.Db)
-	if err != nil {
-		logger.WithError(err).Warn()
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message(err.Error()))
+	// Validate info
+	if len(coffeeInfo.Name) == 0 || coffeeInfo.Price == 0 {
+		logger.Warn("Invalid coffee attributes")
+		util.Respond(w, http.StatusBadRequest, util.Message("Invalid coffee attributes"))
 		return
 	}
 
-	util.Respond(w, util.Message("Created new Coffee"))
+	if err := sr.Db.Create(coffeeInfo).Error; err != nil {
+		logger.WithError(err).Warn()
+		util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
+		return
+	}
+
+	util.Respond(w, http.StatusOK, util.Message("Created new Coffee"))
 }
 
-func (sr *internalSubrouter) deleteCoffeeHandler(w http.ResponseWriter, r *http.Request) {
+type UpdateCoffeeRequest struct {
+	Name        *string  `json:"name"`
+	Description *string  `json:"description"`
+	Price       *float32 `json:"price"`
+	InStock     *bool    `json:"inStock"`
+}
+
+func (sr *internalSubrouter) updateCoffeeHandler(w http.ResponseWriter, r *http.Request) {
 	logger := log.WithFields(log.Fields{
 		"request": "InternalDeleteCoffeeHandler",
 		"method":  r.Method,
 	})
 
 	if !validateAdmin(r.Context()) {
-		w.WriteHeader(http.StatusForbidden)
-		util.Respond(w, util.Message("Invalid role type"))
+		util.Respond(w, http.StatusForbidden, util.Message("Invalid role type"))
 		return
 	}
 
@@ -102,37 +110,70 @@ func (sr *internalSubrouter) deleteCoffeeHandler(w http.ResponseWriter, r *http.
 	coffeeId, err := strconv.Atoi(requestedCoffee)
 	if err != nil {
 		logger.Warn("Error parsing id")
-		w.WriteHeader(http.StatusBadRequest)
-		util.Respond(w, util.Message("Error parsing coffee id"))
+		util.Respond(w, http.StatusBadRequest, util.Message("Error parsing coffee id"))
 		return
 	}
 
 	coffee := models.Coffee{}
-	err = sr.Db.Table("coffees").Where("ID = ?", coffeeId).First(&coffee).Error
+	err = sr.Db.Table("coffees").
+		Where("ID = ?", coffeeId).
+		First(&coffee).Error
+
 	if err != nil {
 		logger.WithError(err).Warn("Database Error")
 
 		if err == gorm.ErrRecordNotFound {
-			w.WriteHeader(http.StatusNotFound)
-			util.Respond(w, util.Message("Not Found"))
+			util.Respond(w, http.StatusNotFound, util.Message("Not Found"))
 			return
 		}
 
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message("Internal Error"))
+		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
 		return
 	}
 
-	err = sr.Db.Delete(&coffee).Error
-	if err != nil {
-		logger.WithError(err).Warn("Error")
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message("Internal Error"))
+	// Update coffee with new values
+	if r.Method == "PATCH" {
+		decoder := json.NewDecoder(r.Body)
+		var newCoffeeInfo UpdateCoffeeRequest
+		if err := decoder.Decode(&newCoffeeInfo); err != nil {
+			logger.WithError(err).Warn()
+			util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
+			return
+		}
+
+		// Compare difference/default values
+		if newCoffeeInfo.Name != nil {
+			coffee.Name = *newCoffeeInfo.Name
+		}
+		if newCoffeeInfo.Price != nil {
+			coffee.Price = *newCoffeeInfo.Price
+		}
+		if newCoffeeInfo.Description != nil {
+			coffee.Description = *newCoffeeInfo.Description
+		}
+		if newCoffeeInfo.InStock != nil {
+			coffee.InStock = *newCoffeeInfo.InStock
+		}
+
+		if err := sr.Db.Save(&coffee).Error; err != nil {
+			logger.WithError(err).Warn("Error")
+			util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
+			return
+		}
+		util.Respond(w, http.StatusOK, util.Message("Successfully updated coffee"))
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	util.Respond(w, util.Message("Successfully deleted coffee"))
+	// Delete the coffee
+	if r.Method == "DELETE" {
+		if err := sr.Db.Delete(&coffee).Error; err != nil {
+			logger.WithError(err).Warn("Error")
+			util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
+			return
+		}
+		util.Respond(w, http.StatusOK, util.Message("Successfully deleted coffee"))
+		return
+	}
 }
 
 type PurchaseUpdateRequest struct {
@@ -146,8 +187,7 @@ func (sr *internalSubrouter) purchaseHandler(w http.ResponseWriter, r *http.Requ
 	})
 
 	if !validateAdmin(r.Context()) {
-		w.WriteHeader(http.StatusForbidden)
-		util.Respond(w, util.Message("Invalid role type"))
+		util.Respond(w, http.StatusForbidden, util.Message("Invalid role type"))
 		return
 	}
 	vars := mux.Vars(r)
@@ -155,18 +195,15 @@ func (sr *internalSubrouter) purchaseHandler(w http.ResponseWriter, r *http.Requ
 	txId, err := strconv.Atoi(requestedPurchase)
 	if err != nil {
 		logger.Warn("Error parsing id")
-		w.WriteHeader(http.StatusBadRequest)
-		util.Respond(w, util.Message("Error parsing coffee id"))
+		util.Respond(w, http.StatusBadRequest, util.Message("Error parsing coffee id"))
 		return
 	}
 
 	var reqData PurchaseUpdateRequest
 	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(&reqData)
-	if err != nil {
+	if err := decoder.Decode(&reqData); err != nil {
 		logger.WithError(err).Warn()
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message(err.Error()))
+		util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
 		return
 	}
 
@@ -176,25 +213,21 @@ func (sr *internalSubrouter) purchaseHandler(w http.ResponseWriter, r *http.Requ
 		logger.WithError(err).Warn("Database Error")
 
 		if err == gorm.ErrRecordNotFound {
-			w.WriteHeader(http.StatusNotFound)
-			util.Respond(w, util.Message("Not Found"))
+			util.Respond(w, http.StatusNotFound, util.Message("Not Found"))
 			return
 		}
 
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message("Internal Error"))
+		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
 		return
 	}
 
 	transaction.AmountPaid = reqData.AmountPaid
-	err = sr.Db.Save(&transaction).Error
-	if err != nil {
+
+	if err := sr.Db.Save(&transaction).Error; err != nil {
 		logger.WithError(err).Warn("Database Error")
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message("Internal Error"))
+		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
 		return
 	}
 
-	w.WriteHeader(http.StatusAccepted)
-	util.Respond(w, util.Message("Successfully updated purchase"))
+	util.Respond(w, http.StatusOK, util.Message("Successfully updated purchase"))
 }

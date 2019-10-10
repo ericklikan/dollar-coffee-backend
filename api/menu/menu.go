@@ -33,6 +33,7 @@ type CoffeeResponse struct {
 	Name        string
 	Description string
 	Price       float32
+	InStock     bool
 }
 
 func (router *menuSubrouter) CoffeeHandler(w http.ResponseWriter, r *http.Request) {
@@ -41,32 +42,32 @@ func (router *menuSubrouter) CoffeeHandler(w http.ResponseWriter, r *http.Reques
 		"method":  r.Method,
 	})
 
+	// Find page offset
 	offset := 0
 	pageNumQuery := r.URL.Query().Get("page")
 	if pageNum, err := strconv.Atoi(pageNumQuery); err == nil {
 		offset = (pageNum - 1) * pageSize
 	}
 
+	// query coffees
 	coffees := []CoffeeResponse{}
 	err := router.Db.Table("coffees").
-		Select([]string{"ID", "name", "description", "price"}).
+		Select([]string{"ID", "name", "description", "price", "in_stock"}).
 		Offset(offset).
 		Limit(pageSize).
 		Find(&coffees).
 		Error
-
 	if err != nil {
 		logger.WithError(err).Warn()
-		util.Respond(w, util.Message("Error getting coffees"))
+		util.Respond(w, http.StatusInternalServerError, util.Message("Error getting coffees"))
 	}
 	if len(coffees) == 0 {
 		logger.Warn("coffees not found")
-		w.WriteHeader(http.StatusNotFound)
-		util.Respond(w, util.Message("Couldn't find coffees"))
+		util.Respond(w, http.StatusNotFound, util.Message("Couldn't find coffees"))
 		return
 	}
 
-	util.Respond(w, map[string]interface{}{
+	util.Respond(w, http.StatusOK, map[string]interface{}{
 		"coffees": coffees,
 	})
 }

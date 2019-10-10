@@ -19,9 +19,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		splitted := strings.Split(tokenHeader, " ")
 		if tokenHeader == "" || len(splitted) != 2 {
 			response = Message("Missing/Invalid/Malformed auth token")
-			w.WriteHeader(http.StatusForbidden)
-			w.Header().Add("Content-Type", "application/json")
-			Respond(w, response)
+			Respond(w, http.StatusForbidden, response)
 			return
 		}
 
@@ -32,9 +30,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		})
 		if err != nil || !token.Valid {
 			response = Message("Something was wrong with auth token")
-			w.WriteHeader(http.StatusForbidden)
-			w.Header().Add("Content-Type", "application/json")
-			Respond(w, response)
+			Respond(w, http.StatusForbidden, response)
 			return
 		}
 

@@ -9,7 +9,7 @@ GORUN=$(GOCMD) run
 BUILD_DIR=build
 BINARY_NAME=$(BUILD_DIR)/run
     
-all: test build
+all: test build 
 
 .PHONY: build
 build: clean

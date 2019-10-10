@@ -53,30 +53,26 @@ func (sr *authSubrouter) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&userInfo)
 	if err != nil {
 		logger.WithError(err).Warn()
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message(err.Error()))
+		util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
 		return
 	}
 	if len(userInfo.Email) == 0 || len(userInfo.Password) == 0 {
 		logger.Warn("Missing email or password")
-		w.WriteHeader(http.StatusBadRequest)
-		util.Respond(w, util.Message("missing user"))
+		util.Respond(w, http.StatusBadRequest, util.Message("missing user"))
 		return
 	}
 
 	err = userInfo.Login(sr.Db)
 	if err != nil {
 		logger.WithError(err).Warn()
-		w.WriteHeader(http.StatusUnauthorized)
-		util.Respond(w, util.Message(err.Error()))
+		util.Respond(w, http.StatusUnauthorized, util.Message(err.Error()))
 		return
 	}
 
 	response := util.Message(fmt.Sprintf("Logged In as %s", userInfo.FirstName))
 	response["token"] = userInfo.Token
 
-	w.WriteHeader(http.StatusOK)
-	util.Respond(w, response)
+	util.Respond(w, http.StatusOK, response)
 }
 
 func (sr *authSubrouter) RegisterHandler(w http.ResponseWriter, r *http.Request) {
@@ -97,27 +93,23 @@ func (sr *authSubrouter) RegisterHandler(w http.ResponseWriter, r *http.Request)
 	err := decoder.Decode(&userInfo)
 	if err != nil {
 		logger.WithError(err).Warn()
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message(err.Error()))
+		util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
 		return
 	}
 	if len(userInfo.FirstName) == 0 || len(userInfo.LastName) == 0 {
 		logger.Warn("you must have a first name and a last name")
-		w.WriteHeader(http.StatusBadRequest)
-		util.Respond(w, util.Message("Invalid first or last name"))
+		util.Respond(w, http.StatusBadRequest, util.Message("Invalid first or last name"))
 		return
 	}
 
 	if err := userInfo.Create(sr.Db); err != nil {
 		logger.WithError(err).Warn()
-		w.WriteHeader(http.StatusInternalServerError)
-		util.Respond(w, util.Message(err.Error()))
+		util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
 		return
 	}
 
 	response := util.Message("Created User")
 	response["token"] = userInfo.Token
 
-	w.WriteHeader(http.StatusOK)
-	util.Respond(w, response)
+	util.Respond(w, http.StatusOK, response)
 }
