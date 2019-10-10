@@ -51,7 +51,7 @@ This endpoint will register a new user given
 
 ##### Request Body
 
-```JSON
+```javascript
 {
     "firstName": string (required),
     "lastName" : string (required),
@@ -63,7 +63,7 @@ This endpoint will register a new user given
 
 ##### Response
 
-```JSON
+```javascript
 {
     "message": string,
     "token"  : string (on success)
@@ -84,7 +84,7 @@ This endpoint will issue a JWT with user id and user role
 
 ##### Request Body
 
-```JSON
+```javascript
 {
     "email"   : string (required),
     "password": string (required)
@@ -93,7 +93,7 @@ This endpoint will issue a JWT with user id and user role
 
 ##### Response
 
-```JSON
+```javascript
 {
     "message": string,
     "token"  : string (on success)
