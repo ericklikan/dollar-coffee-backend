@@ -45,10 +45,123 @@ This REST API is split up into several modules:
 
 This module is responsible for user registration, and user authentication, where it will issue a jwt that contains information about the user and user role.
 
-### `/menu/`
+#### `POST /auth/register`
 
-This module is responsible for
+This endpoint will register a new user given
+
+##### Request Body
+
+```JSON
+{
+    "firstName": string (required),
+    "lastName" : string (required),
+    "email"    : string (required),
+    "password" : string (required),
+    "phone"    : string (optional)
+}
+```
+
+##### Response
+
+```JSON
+{
+    "message": string,
+    "token"  : string (on success)
+}
+```
+
+Returns following status codes:
+
+| Status Code | Description             |
+| :---------- | :---------------------- |
+| 201         | `CREATED`               |
+| 400         | `BAD REQUEST`           |
+| 500         | `INTERNAL SERVER ERROR` |
+
+#### `POST /auth/login`
+
+This endpoint will issue a JWT with user id and user role
+
+##### Request Body
+
+```JSON
+{
+    "email"   : string (required),
+    "password": string (required)
+}
+```
+
+##### Response
+
+```JSON
+{
+    "message": string,
+    "token"  : string (on success)
+}
+```
+
+Returns following status codes:
+
+| Status Code | Description             |
+| :---------- | :---------------------- |
+| 200         | `OK`                    |
+| 400         | `BAD REQUEST`           |
+| 401         | `UNAUTHORIZED`          |
+| 500         | `INTERNAL SERVER ERROR` |
+
+### `/menu`
+
+This module is responsible for retrieving the coffees and items that are available in the store
+
+#### `GET /menu`
+
+Parameters:
+
+| Parameter | Description          |
+| :-------- | :------------------- |
+| `page`    | Optional page number |
+
+##### Response
+
+```JSON
+{
+    "coffees": [
+        {
+            "ID"         : number,
+            "Name"       : string,
+            "Description": string,
+            "Price"      : float,
+            "InStock"    : boolean
+        },
+    ]
+}
+```
 
 ### `/purchases/`
 
+This module contains logic for submitting purchases by user, retrieving purchase history. These requests will require a valid JWT.
+
+Required Headers:
+
+| Header          | Description           |
+| :-------------- | :-------------------- |
+| `Authorization` | `Bearer {Issued JWT}` |
+
 ### `/internal/`
+
+This module is responsible for all admin tasks such as updating purchase amount paid, and creating/updating/deleting new coffees available.
+
+Required Headers:
+
+| Header          | Description                    |
+| :-------------- | :----------------------------- |
+| `Authorization` | `Bearer {Issued JWT as admin}` |
+
+## TODO
+
+- Add Unit tests
+- Add internal endpoint to get information for all purchases
+- Create a data layer
+- Change pagination method from offset to using [last seen id](https://use-the-index-luke.com/no-offset)
+- Look into using OAuth 2.0 Provider instead of JWT authentication
+- Move requests/response structures into separate files

@@ -111,5 +111,5 @@ func (sr *authSubrouter) RegisterHandler(w http.ResponseWriter, r *http.Request)
 	response := util.Message("Created User")
 	response["token"] = userInfo.Token
 
-	util.Respond(w, http.StatusOK, response)
+	util.Respond(w, http.StatusCreated, response)
 }
