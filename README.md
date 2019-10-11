@@ -351,6 +351,7 @@ Returns following status codes:
 
 - Add Unit tests
 - Add internal endpoint to get information for all purchases
+- Add internal endpoint to get all users
 - Refactor data layer
 - Change pagination method from offset to using [last seen id](https://use-the-index-luke.com/no-offset)
 - Look into using OAuth 2.0 Provider instead of JWT authentication
