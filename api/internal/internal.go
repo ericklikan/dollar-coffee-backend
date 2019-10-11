@@ -18,6 +18,17 @@ type internalSubrouter struct {
 	util.CommonSubrouter
 }
 
+type UpdateCoffeeRequest struct {
+	Name        *string  `json:"name"`
+	Description *string  `json:"description"`
+	Price       *float32 `json:"price"`
+	InStock     *bool    `json:"inStock"`
+}
+
+type PurchaseUpdateRequest struct {
+	AmountPaid float32 `json:"amountPaid"`
+}
+
 // This route is for internal uses only to update/get coffee, purchases etc
 
 const prefix = "/internal"
@@ -78,20 +89,13 @@ func (sr *internalSubrouter) coffeeHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := sr.Db.Create(coffeeInfo).Error; err != nil {
+	if err := sr.Db.Create(&coffeeInfo).Error; err != nil {
 		logger.WithError(err).Warn()
 		util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
 		return
 	}
 
 	util.Respond(w, http.StatusOK, util.Message("Created new Coffee"))
-}
-
-type UpdateCoffeeRequest struct {
-	Name        *string  `json:"name"`
-	Description *string  `json:"description"`
-	Price       *float32 `json:"price"`
-	InStock     *bool    `json:"inStock"`
 }
 
 func (sr *internalSubrouter) updateCoffeeHandler(w http.ResponseWriter, r *http.Request) {
@@ -174,10 +178,6 @@ func (sr *internalSubrouter) updateCoffeeHandler(w http.ResponseWriter, r *http.
 		util.Respond(w, http.StatusOK, util.Message("Successfully deleted coffee"))
 		return
 	}
-}
-
-type PurchaseUpdateRequest struct {
-	AmountPaid float32 `json:"amountPaid"`
 }
 
 func (sr *internalSubrouter) purchaseHandler(w http.ResponseWriter, r *http.Request) {

@@ -18,8 +18,28 @@ import (
 const prefix = "/purchases"
 const pageSize = 10
 
-type purchaseSubRouter struct {
+type PurchaseSubRouter struct {
 	util.CommonSubrouter
+}
+
+type PurchaseItem struct {
+	CoffeeId      uint   `json:"coffeeId"`
+	CoffeeOptions string `json:"options"`
+}
+
+// Requests
+
+type PurchaseRequest struct {
+	Coffees []PurchaseItem `json:"items"`
+}
+
+// Responses
+
+type PurchaseHistoryResponse struct {
+	ID            uint                  `json:"transactionId"`
+	AmountPaid    float32               `json:"amountPaid"`
+	CreatedAt     time.Time             `json:"purchaseDate"`
+	PurchaseItems []models.PurchaseItem `json:"items"`
 }
 
 func Setup(router *mux.Router, db *gorm.DB) error {
@@ -29,7 +49,7 @@ func Setup(router *mux.Router, db *gorm.DB) error {
 		return err
 	}
 
-	purchase := purchaseSubRouter{}
+	purchase := PurchaseSubRouter{}
 	purchase.Router = router.
 		PathPrefix(prefix).
 		Subrouter()
@@ -49,16 +69,7 @@ func Setup(router *mux.Router, db *gorm.DB) error {
 	return nil
 }
 
-type PurchaseItem struct {
-	CoffeeId      uint   `json:"coffeeId"`
-	CoffeeOptions string `json:"options"`
-}
-
-type PurchaseRequest struct {
-	Coffees []PurchaseItem `json:"items"`
-}
-
-func (sr *purchaseSubRouter) PurchaseHandler(w http.ResponseWriter, r *http.Request) {
+func (sr *PurchaseSubRouter) PurchaseHandler(w http.ResponseWriter, r *http.Request) {
 	logger := log.WithFields(log.Fields{
 		"request": "PurchaseHandler",
 		"method":  r.Method,
@@ -109,14 +120,7 @@ func (sr *purchaseSubRouter) PurchaseHandler(w http.ResponseWriter, r *http.Requ
 	util.Respond(w, http.StatusOK, util.Message("Purchase Confirmed"))
 }
 
-type PurchaseHistoryResponse struct {
-	ID            uint                  `json:"transactionId"`
-	AmountPaid    float32               `json:"amountPaid"`
-	CreatedAt     time.Time             `json:"purchaseDate"`
-	PurchaseItems []models.PurchaseItem `json:"items"`
-}
-
-func (sr *purchaseSubRouter) PurchaseHistoryHandler(w http.ResponseWriter, r *http.Request) {
+func (sr *PurchaseSubRouter) PurchaseHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	logger := log.WithFields(log.Fields{
 		"request": "PurchaseHistoryHandler",
 		"method":  r.Method,

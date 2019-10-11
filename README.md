@@ -147,6 +147,79 @@ Required Headers:
 | :-------------- | :-------------------- |
 | `Authorization` | `Bearer {Issued JWT}` |
 
+#### `POST /purchases/purchase`
+
+Creates a purchase record for a user using information from the JWT token
+
+##### Request Body
+
+```javascript
+{
+    "items":[
+        {
+            "coffeeId": uint (required),
+            "options" : string
+        },
+    ]
+}
+```
+
+##### Response
+
+```javascript
+{
+    "message": string
+}
+```
+
+Returns following status codes:
+
+| Status Code | Description             |
+| :---------- | :---------------------- |
+| 200         | `OK`                    |
+| 400         | `BAD REQUEST`           |
+| 401         | `UNAUTHORIZED`          |
+| 500         | `INTERNAL SERVER ERROR` |
+
+#### `POST /purchases/{userId}`
+
+Retrieves a page from purchase history for userId
+
+Parameters:
+
+| Parameter | Description          |
+| :-------- | :------------------- |
+| `page`    | Optional page number |
+
+##### Response
+
+```javascript
+{
+    "message": string,
+    "purchases": [
+        {
+            "transactionId": uint,
+            "amountPaid"   : float32,
+            "purchaseDate" : string,
+            "items": [
+                {
+                    "CoffeeId"  : uint,
+                    "TypeOption": string
+                },
+            ]
+        },
+    ]
+}
+```
+
+Returns following status codes:
+
+| Status Code | Description             |
+| :---------- | :---------------------- |
+| 200         | `OK`                    |
+| 401         | `UNAUTHORIZED`          |
+| 500         | `INTERNAL SERVER ERROR` |
+
 ### `/internal/`
 
 This module is responsible for all admin tasks such as updating purchase amount paid, and creating/updating/deleting new coffees available.
@@ -156,6 +229,37 @@ Required Headers:
 | Header          | Description                    |
 | :-------------- | :----------------------------- |
 | `Authorization` | `Bearer {Issued JWT as admin}` |
+
+#### `POST /internal/coffee`
+
+Creates a new coffee available in store
+
+##### Request Body
+
+```javascript
+{
+    "name"       : string,
+    "price"      : float,
+    "description": string
+}
+```
+
+##### Response
+
+```javascript
+{
+    "message": string
+}
+```
+
+Returns following status codes:
+
+| Status Code | Description             |
+| :---------- | :---------------------- |
+| 200         | `OK`                    |
+| 400         | `BAD REQUEST`           |
+| 401         | `UNAUTHORIZED`          |
+| 500         | `INTERNAL SERVER ERROR` |
 
 ## TODO
 

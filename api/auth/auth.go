@@ -34,8 +34,6 @@ func Setup(router *mux.Router, db *gorm.DB) error {
 
 	auth.Router.HandleFunc("/login", auth.LoginHandler).Methods("POST")
 	auth.Router.HandleFunc("/register", auth.RegisterHandler).Methods("POST")
-
-	// TODO: Implement refresh tokens to get new jwt
 	return nil
 }
 
