@@ -259,13 +259,98 @@ Returns following status codes:
 | 200         | `OK`                    |
 | 400         | `BAD REQUEST`           |
 | 401         | `UNAUTHORIZED`          |
+| 403         | `FORBIDDEN`             |
+| 500         | `INTERNAL SERVER ERROR` |
+
+#### `PATCH /internal/coffee/{coffeeId}`
+
+Updates given coffee attributes
+
+##### Request Body
+
+```javascript
+{
+    "name"       : string,
+    "price"      : float,
+    "description": string,
+    "inStock"    : boolean
+}
+```
+
+##### Response
+
+```javascript
+{
+    "message": string
+}
+```
+
+Returns following status codes:
+
+| Status Code | Description             |
+| :---------- | :---------------------- |
+| 200         | `OK`                    |
+| 400         | `BAD REQUEST`           |
+| 401         | `UNAUTHORIZED`          |
+| 403         | `FORBIDDEN`             |
+| 500         | `INTERNAL SERVER ERROR` |
+
+#### `DELETE /internal/coffee/{coffeeId}`
+
+Deletes coffee where id = coffeeId
+
+##### Response
+
+```javascript
+{
+    "message": string
+}
+```
+
+Returns following status codes:
+
+| Status Code | Description             |
+| :---------- | :---------------------- |
+| 200         | `OK`                    |
+| 400         | `BAD REQUEST`           |
+| 401         | `UNAUTHORIZED`          |
+| 403         | `FORBIDDEN`             |
+| 500         | `INTERNAL SERVER ERROR` |
+
+#### `PATCH /internal/purchase/{purchase}`
+
+Updates amountPaid for purchase
+
+##### Request Body
+
+```javascript
+{
+    "amountPaid": float,
+}
+```
+
+##### Response
+
+```javascript
+{
+    "message": string
+}
+```
+
+Returns following status codes:
+
+| Status Code | Description             |
+| :---------- | :---------------------- |
+| 200         | `OK`                    |
+| 400         | `BAD REQUEST`           |
+| 401         | `UNAUTHORIZED`          |
+| 403         | `FORBIDDEN`             |
 | 500         | `INTERNAL SERVER ERROR` |
 
 ## TODO
 
 - Add Unit tests
 - Add internal endpoint to get information for all purchases
-- Create a data layer
+- Refactor data layer
 - Change pagination method from offset to using [last seen id](https://use-the-index-luke.com/no-offset)
 - Look into using OAuth 2.0 Provider instead of JWT authentication
-- Move requests/response structures into separate files
