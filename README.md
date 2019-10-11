@@ -181,7 +181,7 @@ Returns following status codes:
 | 401         | `UNAUTHORIZED`          |
 | 500         | `INTERNAL SERVER ERROR` |
 
-#### `POST /purchases/{userId}`
+#### `GET /purchases/{userId}`
 
 Retrieves a page from purchase history for userId
 
