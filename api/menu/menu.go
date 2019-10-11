@@ -3,6 +3,7 @@ package menu
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/ericklikan/dollar-coffee-backend/api/util"
 	"github.com/gorilla/mux"
@@ -13,12 +14,21 @@ import (
 const prefix = "/menu"
 const pageSize = 10
 
-type menuSubrouter struct {
+type MenuSubrouter struct {
 	util.CommonSubrouter
 }
 
+type CoffeeResponse struct {
+	ID          uint
+	Name        string
+	Description string
+	Price       float32
+	InStock     bool
+	UpdatedAt   time.Time `json:"-"`
+}
+
 func Setup(router *mux.Router, db *gorm.DB) error {
-	subRouter := menuSubrouter{}
+	subRouter := MenuSubrouter{}
 	subRouter.Router = router.PathPrefix(prefix).Subrouter()
 	subRouter.Db = db
 
@@ -28,15 +38,7 @@ func Setup(router *mux.Router, db *gorm.DB) error {
 	return nil
 }
 
-type CoffeeResponse struct {
-	ID          uint
-	Name        string
-	Description string
-	Price       float32
-	InStock     bool
-}
-
-func (router *menuSubrouter) CoffeeHandler(w http.ResponseWriter, r *http.Request) {
+func (router *MenuSubrouter) CoffeeHandler(w http.ResponseWriter, r *http.Request) {
 	logger := log.WithFields(log.Fields{
 		"request": "CoffeeHandler",
 		"method":  r.Method,
@@ -55,6 +57,7 @@ func (router *menuSubrouter) CoffeeHandler(w http.ResponseWriter, r *http.Reques
 		Select([]string{"ID", "name", "description", "price", "in_stock"}).
 		Offset(offset).
 		Limit(pageSize).
+		Order("updated_at ASC").
 		Find(&coffees).
 		Error
 	if err != nil {
