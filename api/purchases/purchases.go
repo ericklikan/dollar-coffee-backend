@@ -158,9 +158,9 @@ func (sr *PurchaseSubRouter) PurchaseHistoryHandler(w http.ResponseWriter, r *ht
 		Select([]string{"id", "amount_paid", "created_at"}).
 		Where("user_id = ?", requestedUserId).
 		Order("created_at DESC").
-		Find(&purchases).
 		Limit(pageSize).
 		Offset(offset).
+		Find(&purchases).
 		Error
 	if err != nil {
 		logger.WithError(err).Warn("Error retrieving values")

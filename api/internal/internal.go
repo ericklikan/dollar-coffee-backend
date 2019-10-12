@@ -14,6 +14,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const pageSize = 10
+
 type internalSubrouter struct {
 	util.CommonSubrouter
 }
@@ -57,6 +59,9 @@ func Setup(router *mux.Router, db *gorm.DB) error {
 	// Route to update amount paid on purchases
 	// Requires param: "amountPaid" in body
 	internal.Router.HandleFunc("/purchase/{purchaseId}", internal.purchaseHandler).Methods("PATCH")
+
+	// Route to get information from all users
+	internal.Router.HandleFunc("/users", internal.usersHandler).Methods("GET")
 	return nil
 }
 
@@ -230,4 +235,47 @@ func (sr *internalSubrouter) purchaseHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	util.Respond(w, http.StatusOK, util.Message("Successfully updated purchase"))
+}
+
+func (sr *internalSubrouter) usersHandler(w http.ResponseWriter, r *http.Request) {
+	logger := log.WithFields(log.Fields{
+		"request": "InternalUsersHandler",
+		"method":  r.Method,
+	})
+	if !validateAdmin(r.Context()) {
+		logger.Warn("Invalid role type")
+		util.Respond(w, http.StatusForbidden, util.Message("Invalid role type"))
+		return
+	}
+
+	offset := 0
+	pageNumQuery := r.URL.Query().Get("page")
+	if pageNum, err := strconv.Atoi(pageNumQuery); err == nil {
+		offset = (pageNum - 1) * pageSize
+	}
+
+	users := make([]*models.User, 0, 10)
+	err := sr.Db.
+		Table("users").
+		Order("created_at DESC").
+		Limit(pageSize).
+		Offset(offset).
+		Find(&users).
+		Error
+	if err != nil {
+		logger.WithError(err).Warn("Error retrieving values")
+		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
+		return
+	}
+
+	if len(users) == 0 {
+		logger.Warn("users not found")
+		util.Respond(w, http.StatusNotFound, util.Message("Couldn't find any users"))
+		return
+	}
+
+	response := util.Message("Users successfully queried")
+	response["users"] = users
+
+	util.Respond(w, http.StatusOK, response)
 }
