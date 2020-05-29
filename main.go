@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"os"
 
-	routes "github.com/ericklikan/dollar-coffee-backend/api"
-	"github.com/ericklikan/dollar-coffee-backend/models"
+	routes "github.com/ericklikan/dollar-coffee-backend/pkg/api"
+	"github.com/ericklikan/dollar-coffee-backend/pkg/models"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -47,6 +47,7 @@ func main() {
 	originsOk := handlers.AllowedOrigins([]string{"*"})
 	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
 
+	log.Infof("Started server on port %s", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), handlers.CORS(originsOk, headersOk, methodsOk)(router)))
 }
 
