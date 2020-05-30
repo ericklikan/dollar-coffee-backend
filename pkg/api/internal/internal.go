@@ -9,6 +9,7 @@ import (
 
 	"github.com/ericklikan/dollar-coffee-backend/pkg/api/util"
 	"github.com/ericklikan/dollar-coffee-backend/pkg/models"
+	repository_interfaces "github.com/ericklikan/dollar-coffee-backend/pkg/repositories/interfaces"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
@@ -18,6 +19,8 @@ const pageSize = 10
 
 type internalSubrouter struct {
 	util.CommonSubrouter
+
+	coffeeRepository repository_interfaces.CoffeeRepository
 }
 
 type UpdateCoffeeRequest struct {
@@ -35,14 +38,16 @@ type PurchaseUpdateRequest struct {
 
 const prefix = "/internal"
 
-func Setup(router *mux.Router, db *gorm.DB) error {
+func Setup(router *mux.Router, db *gorm.DB, coffeeRepository repository_interfaces.CoffeeRepository) error {
 	if db == nil || router == nil {
 		err := errors.New("db or router is nil")
 		log.WithError(err).Warn()
 		return err
 	}
 
-	internal := internalSubrouter{}
+	internal := internalSubrouter{
+		coffeeRepository: coffeeRepository,
+	}
 	internal.Router = router.
 		PathPrefix(prefix).
 		Subrouter()
@@ -94,11 +99,14 @@ func (sr *internalSubrouter) coffeeHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := sr.Db.Create(&coffeeInfo).Error; err != nil {
+	tx := sr.Db.Begin()
+	if err := sr.coffeeRepository.CreateCoffee(tx, &coffeeInfo); err != nil {
+		tx.Rollback()
 		logger.WithError(err).Warn()
 		util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
 		return
 	}
+	tx.Commit()
 
 	util.Respond(w, http.StatusOK, util.Message("Created new Coffee"))
 }
@@ -116,36 +124,31 @@ func (sr *internalSubrouter) updateCoffeeHandler(w http.ResponseWriter, r *http.
 
 	vars := mux.Vars(r)
 	requestedCoffee := vars["coffeeId"]
-	coffeeId, err := strconv.Atoi(requestedCoffee)
-	if err != nil {
-		logger.Warn("Error parsing id")
-		util.Respond(w, http.StatusBadRequest, util.Message("Error parsing coffee id"))
-		return
-	}
 
-	coffee := models.Coffee{}
-	err = sr.Db.Table("coffees").
-		Where("ID = ?", coffeeId).
-		First(&coffee).Error
-
+	tx := sr.Db.Begin()
+	coffeeMap, err := sr.coffeeRepository.GetCoffeesByIds(tx, []string{requestedCoffee})
 	if err != nil {
+		tx.Rollback()
 		logger.WithError(err).Warn("Database Error")
-
-		if err == gorm.ErrRecordNotFound {
-			util.Respond(w, http.StatusNotFound, util.Message("Not Found"))
-			return
-		}
-
 		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
 		return
 	}
+
+	if _, doesCoffeeExist := coffeeMap[requestedCoffee]; !doesCoffeeExist {
+		tx.Rollback()
+		util.Respond(w, http.StatusNotFound, util.Message("Couldn't find coffee"))
+		return
+	}
+
+	coffee := coffeeMap[requestedCoffee]
 
 	// Update coffee with new values
 	if r.Method == "PATCH" {
 		decoder := json.NewDecoder(r.Body)
 		var newCoffeeInfo UpdateCoffeeRequest
 		if err := decoder.Decode(&newCoffeeInfo); err != nil {
-			logger.WithError(err).Warn()
+			tx.Rollback()
+			logger.WithError(err).Warn("Error decoding JSON")
 			util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
 			return
 		}
@@ -164,25 +167,31 @@ func (sr *internalSubrouter) updateCoffeeHandler(w http.ResponseWriter, r *http.
 			coffee.InStock = *newCoffeeInfo.InStock
 		}
 
-		if err := sr.Db.Save(&coffee).Error; err != nil {
+		if err := sr.coffeeRepository.UpdateCoffee(tx, coffee); err != nil {
+			tx.Rollback()
 			logger.WithError(err).Warn("Error")
 			util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
 			return
 		}
+		tx.Commit()
 		util.Respond(w, http.StatusOK, util.Message("Successfully updated coffee"))
 		return
 	}
 
 	// Delete the coffee
 	if r.Method == "DELETE" {
-		if err := sr.Db.Delete(&coffee).Error; err != nil {
+		if err := sr.coffeeRepository.DeleteCoffee(tx, requestedCoffee); err != nil {
+			tx.Rollback()
 			logger.WithError(err).Warn("Error")
 			util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
 			return
 		}
+		tx.Commit()
 		util.Respond(w, http.StatusOK, util.Message("Successfully deleted coffee"))
 		return
 	}
+
+	tx.Rollback()
 }
 
 func (sr *internalSubrouter) purchaseHandler(w http.ResponseWriter, r *http.Request) {

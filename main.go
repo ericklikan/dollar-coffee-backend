@@ -26,19 +26,20 @@ func main() {
 		log.Warn(err)
 	}
 
-	port := os.Getenv("PORT")
-
-	if port == "" {
-		log.Info("running in debug mode: port 5000")
-		log.SetLevel(log.DebugLevel)
-		port = "5000"
-	}
-
 	db, err := setupDatabase()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
+	port := os.Getenv("PORT")
+
+	if port == "" {
+		log.Info("running in debug mode: port 5000")
+		log.SetLevel(log.DebugLevel)
+		db.LogMode(true)
+		port = "5000"
+	}
 
 	redis := setupCache()
 

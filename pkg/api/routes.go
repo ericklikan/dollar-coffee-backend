@@ -40,7 +40,7 @@ func NewServer(router *mux.Router, db *gorm.DB, redis *redis.Client) error {
 		return err
 	}
 
-	err = internal.Setup(server.Router, db)
+	err = internal.Setup(server.Router, db, coffeeRepository)
 	if err != nil {
 		return err
 	}

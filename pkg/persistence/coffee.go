@@ -1,6 +1,8 @@
 package persistence
 
 import (
+	"strconv"
+
 	"github.com/ericklikan/dollar-coffee-backend/pkg/models"
 	"github.com/jinzhu/gorm"
 )
@@ -13,12 +15,12 @@ func GetCoffeesByID(tx *gorm.DB, coffeeIds []string) (map[string]*models.Coffee,
 	var coffees []*models.Coffee
 	if err := tx.
 		Where("id in (?)", coffeeIds).
-		Find(coffees).Error; err != nil {
+		Find(&coffees).Error; err != nil {
 		return nil, err
 	}
 	coffeesMap := make(map[string]*models.Coffee)
 	for _, coffee := range coffees {
-		coffeesMap[string(coffee.ID)] = coffee
+		coffeesMap[strconv.FormatUint(uint64(coffee.ID), 10)] = coffee
 	}
 	return coffeesMap, nil
 }

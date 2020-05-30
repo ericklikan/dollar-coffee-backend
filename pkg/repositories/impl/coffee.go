@@ -90,5 +90,5 @@ func (repo *CoffeeRepositoryImpl) UpdateCoffee(tx *gorm.DB, coffee *models.Coffe
 func (repo *CoffeeRepositoryImpl) DeleteCoffee(tx *gorm.DB, coffeeId string) error {
 	// invalidate cache
 	repo.redis.Del(redisMenuKey)
-	return nil
+	return persistence.DeleteCoffee(tx, coffeeId)
 }
