@@ -5,6 +5,8 @@ import (
 	"github.com/ericklikan/dollar-coffee-backend/pkg/api/internal"
 	"github.com/ericklikan/dollar-coffee-backend/pkg/api/menu"
 	"github.com/ericklikan/dollar-coffee-backend/pkg/api/purchases"
+	repository "github.com/ericklikan/dollar-coffee-backend/pkg/repositories/impl"
+	"github.com/go-redis/redis/v7"
 
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
@@ -14,12 +16,16 @@ type Server struct {
 	Router *mux.Router
 }
 
-func NewServer(router *mux.Router, db *gorm.DB) error {
+func NewServer(router *mux.Router, db *gorm.DB, redis *redis.Client) error {
 	server := Server{
 		Router: router,
 	}
 
-	err := menu.Setup(server.Router, db)
+	// Repository setups
+	coffeeRepository := repository.NewCoffeeRepository(db, redis)
+
+	// module setups
+	err := menu.Setup(server.Router, db, coffeeRepository)
 	if err != nil {
 		return err
 	}

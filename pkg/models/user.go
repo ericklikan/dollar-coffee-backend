@@ -3,6 +3,7 @@ package models
 import (
 	"errors"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -78,6 +79,8 @@ func (user *User) Create(db *gorm.DB) error {
 		UserId: user.ID,
 		Role:   "user",
 	}
+
+	// HS256 is a symmetric key encryption algorithm. The same token password that is used to sign the token is used to verify the token
 	token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), tk)
 	tokenString, _ := token.SignedString([]byte(os.Getenv("token_password")))
 	user.Token = tokenString
@@ -89,6 +92,7 @@ func (user *User) Create(db *gorm.DB) error {
 
 func (user *User) Login(db *gorm.DB) error {
 	dbUser := &User{}
+	user.Email = strings.ToLower(user.Email)
 	err := db.Table("users").Where("email = ?", user.Email).First(dbUser).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/ericklikan/dollar-coffee-backend/pkg/api/util"
 	"github.com/ericklikan/dollar-coffee-backend/pkg/models"
@@ -85,7 +86,6 @@ func (sr *authSubrouter) RegisterHandler(w http.ResponseWriter, r *http.Request)
 	// - email
 	// - password
 	// - phone (OPTIONAL)
-
 	decoder := json.NewDecoder(r.Body)
 	var userInfo models.User
 	err := decoder.Decode(&userInfo)
@@ -94,6 +94,10 @@ func (sr *authSubrouter) RegisterHandler(w http.ResponseWriter, r *http.Request)
 		util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
 		return
 	}
+
+	// make email to lower
+	userInfo.Email = strings.ToLower(userInfo.Email)
+
 	if len(userInfo.FirstName) == 0 || len(userInfo.LastName) == 0 {
 		logger.Warn("you must have a first name and a last name")
 		util.Respond(w, http.StatusBadRequest, util.Message("Invalid first or last name"))

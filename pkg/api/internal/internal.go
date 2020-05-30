@@ -23,12 +23,12 @@ type internalSubrouter struct {
 type UpdateCoffeeRequest struct {
 	Name        *string  `json:"name"`
 	Description *string  `json:"description"`
-	Price       *float32 `json:"price"`
+	Price       *float64 `json:"price"`
 	InStock     *bool    `json:"inStock"`
 }
 
 type PurchaseUpdateRequest struct {
-	AmountPaid float32 `json:"amountPaid"`
+	AmountPaid float64 `json:"amountPaid"`
 }
 
 // This route is for internal uses only to update/get coffee, purchases etc

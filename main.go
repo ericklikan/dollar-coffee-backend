@@ -7,7 +7,10 @@ import (
 
 	routes "github.com/ericklikan/dollar-coffee-backend/pkg/api"
 	"github.com/ericklikan/dollar-coffee-backend/pkg/models"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 
+	"github.com/go-redis/redis/v7"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
@@ -27,6 +30,7 @@ func main() {
 
 	if port == "" {
 		log.Info("running in debug mode: port 5000")
+		log.SetLevel(log.DebugLevel)
 		port = "5000"
 	}
 
@@ -36,15 +40,17 @@ func main() {
 	}
 	defer db.Close()
 
+	redis := setupCache()
+
 	router := mux.NewRouter()
-	err = routes.NewServer(router, db)
+	err = routes.NewServer(router, db, redis)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// CORS
 	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
-	originsOk := handlers.AllowedOrigins([]string{"*"})
+	originsOk := handlers.AllowedOrigins([]string{"localhost:3000"})
 	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
 
 	log.Infof("Started server on port %s", port)
@@ -61,6 +67,7 @@ func setupDatabase() (*gorm.DB, error) {
 	}
 
 	// Database migrations
+	// TODO: Add migration history
 	dbConn = dbConn.AutoMigrate(
 		models.Coffee{},
 		models.PurchaseItem{},
@@ -83,5 +90,34 @@ func setupDatabase() (*gorm.DB, error) {
 		log.WithError(dbConn.Error).Warn()
 	}
 
+	// Create default admin if table is empty
+	var user models.User
+	err = dbConn.Find(&user).Error
+	if err == gorm.ErrRecordNotFound {
+
+		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("OneTwo34%"), bcrypt.DefaultCost)
+		user.Password = string(hashedPassword)
+		newId, _ := uuid.NewRandom()
+
+		dbConn.Create(&models.User{
+			ID:        newId,
+			FirstName: "Admin",
+			LastName:  "User",
+			Email:     "admin@test.com",
+			Password:  string(hashedPassword),
+			Role:      "admin",
+		})
+	}
+
 	return dbConn, nil
+}
+
+func setupCache() *redis.Client {
+	redisAddr := os.Getenv("REDIS_ADDRESS")
+	redisPW := os.Getenv("REDIS_PASSWORD")
+	return redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: redisPW,
+		DB:       0,
+	})
 }
