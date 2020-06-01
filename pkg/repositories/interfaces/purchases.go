@@ -14,8 +14,9 @@ type PurchasePageQuery struct {
 }
 
 type TransactionsRepository interface {
-	CreateTransaction(tx *gorm.DB, transaction models.Transaction) error
-	GetTransactionsPaginated(tx *gorm.DB, query PurchasePageQuery) ([]*models.Transaction, error)
+	CreateTransaction(tx *gorm.DB, transaction *models.Transaction) error
+	GetTransactionsByIds(tx *gorm.DB, transactionIds []string) (map[string]*models.Transaction, error)
+	GetTransactionsPaginated(tx *gorm.DB, query *PurchasePageQuery) ([]*models.Transaction, error)
 	UpdateTransaction(tx *gorm.DB, transaction *models.Transaction) error
 	DeleteTransaction(tx *gorm.DB, transactionId string) error
 }

@@ -61,6 +61,12 @@ func (router *MenuSubrouter) CoffeeHandler(w http.ResponseWriter, r *http.Reques
 	query.PageSize = pageSize
 	query.Page = pageNum
 
+	// find in stock coffees only
+	inStockQuery := r.URL.Query().Get("in_stock")
+	if inStockBool, err := strconv.ParseBool(inStockQuery); err == nil {
+		query.InStock = &inStockBool
+	}
+
 	// query coffees
 	tx := router.Db.Begin()
 	coffees, err := router.coffeeRepository.GetCoffeesPaginated(tx, &query)
