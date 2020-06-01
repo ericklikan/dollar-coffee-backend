@@ -26,7 +26,7 @@ func (repo *TransactionsRepositoryImpl) GetTransactionsByIds(tx *gorm.DB, transa
 }
 
 func (repo *TransactionsRepositoryImpl) GetTransactionsPaginated(tx *gorm.DB, query *repository_interfaces.PurchasePageQuery) ([]*models.Transaction, error) {
-	return persistence.GetTransactionsPaginated(tx, query.PageSize, query.Page, query.UserId)
+	return persistence.GetTransactionsPaginated(tx, query.PageSize, query.Page, query.UserId, query.Sort, query.SortDirection)
 }
 
 func (repo *TransactionsRepositoryImpl) UpdateTransaction(tx *gorm.DB, purchase *models.Transaction) error {

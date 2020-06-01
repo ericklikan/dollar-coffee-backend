@@ -26,21 +26,7 @@ func GetCoffeesByID(tx *gorm.DB, coffeeIds []string) (map[string]*models.Coffee,
 }
 
 func GetCoffeesPaginated(tx *gorm.DB, pageSize int, page int, inStock *bool) ([]*models.Coffee, error) {
-	var coffees []*models.Coffee
-	q := tx.Model(models.Coffee{}).
-		Select([]string{"ID", "name", "description", "price", "in_stock"}).
-		Offset(page * pageSize).
-		Limit(pageSize).
-		Order("updated_at ASC")
-
-	if inStock != nil {
-		q = q.Where("in_stock = ?", *inStock)
-	}
-	if err := q.Find(&coffees).Error; err != nil {
-		return nil, err
-	}
-
-	return coffees, nil
+	return nil, nil
 }
 
 func UpdateCoffee(tx *gorm.DB, coffee *models.Coffee) error {
@@ -50,6 +36,6 @@ func UpdateCoffee(tx *gorm.DB, coffee *models.Coffee) error {
 func DeleteCoffee(tx *gorm.DB, coffeeId string) error {
 	return tx.
 		Where("id = ?", coffeeId).
-		Delete(models.Coffee{}).
+		Delete(models.User{}).
 		Error
 }

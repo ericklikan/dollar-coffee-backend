@@ -9,6 +9,7 @@ import (
 
 	"github.com/ericklikan/dollar-coffee-backend/pkg/api/util"
 	"github.com/ericklikan/dollar-coffee-backend/pkg/models"
+	repository_interfaces "github.com/ericklikan/dollar-coffee-backend/pkg/repositories/interfaces"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
@@ -20,6 +21,9 @@ const pageSize = 10
 
 type PurchaseSubRouter struct {
 	util.CommonSubrouter
+
+	coffeeRepository   repository_interfaces.CoffeeRepository
+	purchaseRepository repository_interfaces.TransactionsRepository
 }
 
 type PurchaseItem struct {
@@ -36,20 +40,24 @@ type PurchaseRequest struct {
 // Responses
 
 type PurchaseHistoryResponse struct {
-	ID            uint                  `json:"transactionId"`
-	AmountPaid    float32               `json:"amountPaid"`
-	CreatedAt     time.Time             `json:"purchaseDate"`
-	PurchaseItems []models.PurchaseItem `json:"items"`
+	ID            uint                   `json:"transactionId"`
+	AmountPaid    float64                `json:"amountPaid"`
+	Total         float64                `json:"total"`
+	CreatedAt     time.Time              `json:"purchaseDate"`
+	PurchaseItems []*models.PurchaseItem `json:"items"`
 }
 
-func Setup(router *mux.Router, db *gorm.DB) error {
+func Setup(router *mux.Router, db *gorm.DB, coffeeRepository repository_interfaces.CoffeeRepository, transactionRepository repository_interfaces.TransactionsRepository) error {
 	if db == nil || router == nil {
 		err := errors.New("db or router is nil")
 		log.WithError(err).Warn()
 		return err
 	}
 
-	purchase := PurchaseSubRouter{}
+	purchase := PurchaseSubRouter{
+		coffeeRepository:   coffeeRepository,
+		purchaseRepository: transactionRepository,
+	}
 	purchase.Router = router.
 		PathPrefix(prefix).
 		Subrouter()
@@ -97,26 +105,58 @@ func (sr *PurchaseSubRouter) PurchaseHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	purchaseItems := make([]models.PurchaseItem, 0, len(reqData.Coffees))
+	coffeeIdsMap := make(map[string]bool)
+
+	purchaseItems := make([]*models.PurchaseItem, 0, len(reqData.Coffees))
 	for _, item := range reqData.Coffees {
-		purchaseItems = append(purchaseItems, models.PurchaseItem{
+		coffeeIdsMap[strconv.FormatUint(uint64(item.CoffeeId), 10)] = true
+		purchaseItems = append(purchaseItems, &models.PurchaseItem{
 			CoffeeId:   item.CoffeeId,
 			TypeOption: item.CoffeeOptions,
 		})
 	}
 
+	coffeeIds := make([]string, 0, len(coffeeIdsMap))
+	for coffeeId := range coffeeIdsMap {
+		coffeeIds = append(coffeeIds, coffeeId)
+	}
+
+	tx := sr.Db.Begin()
+	coffeesMap, err := sr.coffeeRepository.GetCoffeesByIds(tx, coffeeIds)
+	if err != nil {
+		tx.Rollback()
+		logger.WithError(err).Warn("Error retrieving coffees")
+		util.Respond(w, http.StatusInternalServerError, util.Message("InternalError"))
+		return
+	}
+
+	totalPrice := 0.0
+	for _, purchaseItem := range purchaseItems {
+		coffee, exists := coffeesMap[strconv.FormatUint(uint64(purchaseItem.CoffeeId), 10)]
+		if !exists {
+			tx.Rollback()
+			logger.Warn("Error coffee doesn't exist")
+			util.Respond(w, http.StatusInternalServerError, util.Message("InternalError"))
+			return
+		}
+		purchaseItem.Price = coffee.Price
+		totalPrice += purchaseItem.Price
+	}
+
 	purchase := models.Transaction{
 		UserId: userId,
 		Items:  purchaseItems,
+		Total:  totalPrice,
 	}
 
-	err = sr.Db.Create(&purchase).Error
+	err = sr.purchaseRepository.CreateTransaction(tx, &purchase)
 	if err != nil {
 		logger.WithError(err).Warn()
 		util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
 		return
 	}
 
+	tx.Commit()
 	util.Respond(w, http.StatusOK, util.Message("Purchase Confirmed"))
 }
 
@@ -146,63 +186,53 @@ func (sr *PurchaseSubRouter) PurchaseHistoryHandler(w http.ResponseWriter, r *ht
 		return
 	}
 
-	offset := 0
+	pageNum := 0
 	pageNumQuery := r.URL.Query().Get("page")
-	if pageNum, err := strconv.Atoi(pageNumQuery); err == nil {
-		offset = (pageNum - 1) * pageSize
+	if pageNumInt, err := strconv.Atoi(pageNumQuery); err == nil {
+		pageNum = pageNumInt - 1
 	}
 
-	purchases := make([]PurchaseHistoryResponse, 0)
-	err := sr.Db.
-		Table("transactions").
-		Select([]string{"id", "amount_paid", "created_at"}).
-		Where("user_id = ?", requestedUserId).
-		Order("created_at DESC").
-		Limit(pageSize).
-		Offset(offset).
-		Find(&purchases).
-		Error
+	sortKey := "created_at"
+	sortDirection := "DESC"
+	query := repository_interfaces.PurchasePageQuery{
+		UserId:        &requestedUserId,
+		Sort:          &sortKey,
+		SortDirection: &sortDirection,
+	}
+	query.Page = pageNum
+	query.PageSize = pageSize
+
+	tx := sr.Db.Begin()
+	dbPurchases, err := sr.purchaseRepository.GetTransactionsPaginated(tx, &query)
 	if err != nil {
+		tx.Rollback()
 		logger.WithError(err).Warn("Error retrieving values")
 		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
 		return
 	}
+	tx.Commit()
 
-	if len(purchases) == 0 {
+	if len(dbPurchases) == 0 {
 		logger.Warn("purchases not found")
 		util.Respond(w, http.StatusNotFound, util.Message("Couldn't find any purchases"))
 		return
 	}
 
-	purchaseIds := make([]uint, 0, len(purchases))
-	for _, purchase := range purchases {
-		purchaseIds = append(purchaseIds, purchase.ID)
-	}
-
-	purchaseItems := []models.PurchaseItem{}
-	err = sr.Db.
-		Table("purchase_items").
-		Where("transaction_id in (?)", purchaseIds).
-		Find(&purchaseItems).
-		Error
-	if err != nil {
-		logger.WithError(err).Warn("Error retrieving values")
-		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
-		return
-	}
-
-	// Put it in a map to reduce queries
-	purchaseItemMap := make(map[uint][]models.PurchaseItem)
-	for _, purchaseItem := range purchaseItems {
-		purchaseItemMap[purchaseItem.TransactionId] = append(purchaseItemMap[purchaseItem.TransactionId], purchaseItem)
-	}
-
-	for i, purchase := range purchases {
-		purchases[i].PurchaseItems = purchaseItemMap[purchase.ID]
+	purchases := make([]*PurchaseHistoryResponse, 0, len(dbPurchases))
+	for _, purchase := range dbPurchases {
+		purchaseItem := PurchaseHistoryResponse{
+			ID:            purchase.ID,
+			AmountPaid:    purchase.AmountPaid,
+			Total:         purchase.Total,
+			CreatedAt:     purchase.CreatedAt,
+			PurchaseItems: purchase.Items,
+		}
+		purchases = append(purchases, &purchaseItem)
 	}
 
 	response := util.Message("Purchases successfully queried")
 	response["purchases"] = purchases
+	response["pageSize"] = pageSize
 
 	util.Respond(w, http.StatusOK, response)
 }

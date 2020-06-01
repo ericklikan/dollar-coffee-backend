@@ -23,6 +23,7 @@ func NewServer(router *mux.Router, db *gorm.DB, redis *redis.Client) error {
 
 	// Repository setups
 	coffeeRepository := repository.NewCoffeeRepository(db, redis)
+	transactionRepository := repository.NewTransactionsRepository(db)
 
 	// module setups
 	err := menu.Setup(server.Router, db, coffeeRepository)
@@ -30,7 +31,7 @@ func NewServer(router *mux.Router, db *gorm.DB, redis *redis.Client) error {
 		return err
 	}
 
-	err = purchases.Setup(server.Router, db)
+	err = purchases.Setup(server.Router, db, coffeeRepository, transactionRepository)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/ericklikan/dollar-coffee-backend/pkg/models"
@@ -25,13 +26,22 @@ func GetTransactionsByID(tx *gorm.DB, purchaseIds []string) (map[string]*models.
 	return purchaseMap, nil
 }
 
-func GetTransactionsPaginated(tx *gorm.DB, pageSize int, page int, userId *string) ([]*models.Transaction, error) {
+func GetTransactionsPaginated(tx *gorm.DB, pageSize int, page int, userId *string, sortKey *string, sortDirection *string) ([]*models.Transaction, error) {
 	var purchases []*models.Transaction
-	q := tx.Model(models.Coffee{}).
-		Select([]string{"ID", "name", "description", "price", "in_stock"}).
+	q := tx.
 		Offset(page * pageSize).
 		Limit(pageSize).
-		Order("updated_at ASC")
+		Preload("Items")
+
+	if userId != nil {
+		q = q.Where("user_id = ?", *userId)
+	}
+
+	if sortKey != nil && sortDirection != nil {
+		q = q.Order(fmt.Sprintf("%s %s", *sortKey, *sortDirection))
+	} else {
+		q = q.Order("created_at DESC")
+	}
 
 	if err := q.Find(&purchases).Error; err != nil {
 		return nil, err

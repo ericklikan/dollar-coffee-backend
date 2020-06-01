@@ -8,10 +8,10 @@ import (
 type Transaction struct {
 	gorm.Model
 
-	UserId     uuid.UUID      `gorm:"column:user_id;not null"`
-	Items      []PurchaseItem `gorm:"foreignkey:transaction_id;PRELOAD:true"`
-	AmountPaid float64        `gorm:"type:decimal(12,2);not null"`
-	Total      float64        `gorm:"type:decimal(12,2);not null"`
+	UserId     uuid.UUID       `gorm:"column:user_id;not null"`
+	Items      []*PurchaseItem `gorm:"foreignkey:transaction_id;PRELOAD:true"`
+	AmountPaid float64         `gorm:"type:decimal(12,2);not null"`
+	Total      float64         `gorm:"type:decimal(12,2);not null"`
 }
 
 type PurchaseItem struct {

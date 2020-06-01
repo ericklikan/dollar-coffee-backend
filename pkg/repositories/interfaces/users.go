@@ -10,9 +10,9 @@ type UsersPageQuery struct {
 }
 
 type UserRepository interface {
-	LoginUser(email string, password string) *models.User
 	CreateUser(tx *gorm.DB, user *models.User) error
-	GetUsersPaginated(tx *gorm.DB, query UsersPageQuery) ([]*models.User, error)
+	GetUserByEmail(tx *gorm.DB, email string) (*models.User, error)
+	GetUsersPaginated(tx *gorm.DB, query *UsersPageQuery) ([]*models.User, error)
 	UpdateUser(tx *gorm.DB, coffee *models.User) error
 	DeleteUser(tx *gorm.DB, userId string) error
 }

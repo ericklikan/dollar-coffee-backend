@@ -9,6 +9,8 @@ import (
 
 	"github.com/ericklikan/dollar-coffee-backend/pkg/api/util"
 	"github.com/ericklikan/dollar-coffee-backend/pkg/models"
+	repository_interfaces "github.com/ericklikan/dollar-coffee-backend/pkg/repositories/interfaces"
+
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	log "github.com/sirupsen/logrus"
@@ -18,16 +20,20 @@ const prefix = "/auth"
 
 type authSubrouter struct {
 	util.CommonSubrouter
+
+	userRepository repository_interfaces.UserRepository
 }
 
-func Setup(router *mux.Router, db *gorm.DB) error {
+func Setup(router *mux.Router, db *gorm.DB, userRepository repository_interfaces.UserRepository) error {
 	if db == nil || router == nil {
 		err := errors.New("db or router is nil")
 		log.WithError(err).Warn()
 		return err
 	}
 
-	auth := authSubrouter{}
+	auth := authSubrouter{
+		userRepository: userRepository,
+	}
 	auth.Router = router.
 		PathPrefix(prefix).
 		Subrouter()
