@@ -45,6 +45,9 @@ func Setup(router *mux.Router, db *gorm.DB, userRepository repository_interfaces
 
 	auth.Router.HandleFunc("/login", auth.LoginHandler).Methods("POST")
 	auth.Router.HandleFunc("/register", auth.RegisterHandler).Methods("POST")
+	usersRouter := auth.Router.PathPrefix("/users").Subrouter()
+	usersRouter.Use(util.AuthMiddleware)
+	usersRouter.HandleFunc("/{userId}", auth.UpdateUserHandler).Methods("PATCH")
 	return nil
 }
 
@@ -183,4 +186,84 @@ func (sr *authSubrouter) RegisterHandler(w http.ResponseWriter, r *http.Request)
 	response["userId"] = userInfo.ID
 
 	util.Respond(w, http.StatusCreated, response)
+}
+
+func (sr *authSubrouter) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
+	// Update User can update this data:
+	// - firstName
+	// - lastName
+	// - email
+	// - password
+	// - phone
+	logger := log.WithFields(log.Fields{
+		"request": "InternalUpdateUserRole",
+		"method":  r.Method,
+	})
+
+	vars := mux.Vars(r)
+	requestedUser := vars["userId"]
+	if r.Context().Value("role") != "admin" && r.Context().Value("user") != requestedUser {
+		logger.Warnf("Forbidden user %s", r.Context().Value("user"))
+		util.Respond(w, http.StatusForbidden, util.Message("Forbidden"))
+		return
+	}
+
+	var userInfo *models.User
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&userInfo); err != nil {
+		logger.WithError(err).Warn()
+		util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
+		return
+	}
+
+	// retrieve user
+	tx := sr.Db.Begin()
+	usersMap, err := sr.userRepository.GetUsersByIds(tx, []string{requestedUser})
+	if err != nil {
+		tx.Rollback()
+		logger.WithError(err).Warn("Database Error")
+		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
+		return
+	}
+
+	var user *models.User
+	var doesUserExist bool
+	if user, doesUserExist = usersMap[requestedUser]; !doesUserExist {
+		tx.Rollback()
+		logger.WithError(err).Warn("user not found")
+		util.Respond(w, http.StatusNotFound, util.Message("User not found"))
+		return
+	}
+
+	if userInfo.Email != "" {
+		user.Email = strings.ToLower(userInfo.Email)
+	}
+	if userInfo.FirstName != "" {
+		user.FirstName = userInfo.FirstName
+	}
+	if userInfo.LastName != "" {
+		user.LastName = userInfo.LastName
+	}
+	if userInfo.Password != "" {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(userInfo.Password), bcrypt.DefaultCost)
+		if err != nil || len(userInfo.Password) < 8 {
+			logger.WithError(err).Warn()
+			util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
+			return
+		}
+		user.Password = string(hashedPassword)
+	}
+	if userInfo.PhoneNumber != nil && *userInfo.PhoneNumber != "" {
+		user.PhoneNumber = userInfo.PhoneNumber
+	}
+
+	if err := sr.userRepository.UpdateUser(tx, user); err != nil {
+		tx.Rollback()
+		logger.WithError(err).Warn("Database Error")
+		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
+		return
+	}
+
+	tx.Commit()
+	util.Respond(w, http.StatusOK, util.Message("Successfully updated user"))
 }

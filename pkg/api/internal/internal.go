@@ -36,6 +36,10 @@ type PurchaseUpdateRequest struct {
 	AmountPaid float64 `json:"amountPaid"`
 }
 
+type UpdateRoleRequest struct {
+	Role string `json:"role"`
+}
+
 // This route is for internal uses only to update/get coffee, purchases etc
 
 const prefix = "/internal"
@@ -75,6 +79,10 @@ func Setup(router *mux.Router, db *gorm.DB,
 
 	// Route to get information from all users
 	internal.Router.HandleFunc("/users", internal.usersHandler).Methods("GET")
+
+	// Route to update user role information
+	internal.Router.HandleFunc("/users/{userId}/role", internal.updateUserRoleHandler).Methods("PATCH")
+
 	return nil
 }
 
@@ -295,7 +303,65 @@ func (sr *internalSubrouter) usersHandler(w http.ResponseWriter, r *http.Request
 
 	response := util.Message("Users successfully queried")
 	response["users"] = users
-	response["pageSize"] = pageSize
+	response["pageSize"] = len(users)
 
 	util.Respond(w, http.StatusOK, response)
+}
+
+func (sr *internalSubrouter) updateUserRoleHandler(w http.ResponseWriter, r *http.Request) {
+	logger := log.WithFields(log.Fields{
+		"request": "InternalUpdateUserRole",
+		"method":  r.Method,
+	})
+
+	if !validateAdmin(r.Context()) {
+		util.Respond(w, http.StatusForbidden, util.Message("Invalid role type"))
+		return
+	}
+	vars := mux.Vars(r)
+	requestedUser := vars["userId"]
+
+	var reqData UpdateRoleRequest
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&reqData); err != nil {
+		logger.WithError(err).Warn()
+		util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
+		return
+	}
+
+	if reqData.Role != "admin" && reqData.Role != "user" {
+		logger.Warn("Invalid Role")
+		util.Respond(w, http.StatusBadRequest, util.Message("Invalid Role"))
+		return
+	}
+
+	// retrieve user
+	tx := sr.Db.Begin()
+	usersMap, err := sr.userRepository.GetUsersByIds(tx, []string{requestedUser})
+	if err != nil {
+		tx.Rollback()
+		logger.WithError(err).Warn("Database Error")
+		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
+		return
+	}
+
+	var user *models.User
+	var doesUserExist bool
+	if user, doesUserExist = usersMap[requestedUser]; !doesUserExist {
+		tx.Rollback()
+		logger.WithError(err).Warn("user not found")
+		util.Respond(w, http.StatusNotFound, util.Message("User not found"))
+		return
+	}
+
+	user.Role = reqData.Role
+	if err := sr.userRepository.UpdateUser(tx, user); err != nil {
+		tx.Rollback()
+		logger.WithError(err).Warn("Database Error")
+		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
+		return
+	}
+
+	tx.Commit()
+	util.Respond(w, http.StatusOK, util.Message("Successfully updated user role"))
 }
