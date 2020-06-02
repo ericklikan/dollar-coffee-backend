@@ -64,6 +64,34 @@ func TestGetUsersById(t *testing.T) {
 	tx.Rollback()
 }
 
+func TestGetUserByEmail(t *testing.T) {
+	db := test.SetupTestDb(t)
+	tx := db.Begin()
+
+	testUser := models.User{
+		ID:        testUserId,
+		FirstName: "Test",
+		LastName:  "test",
+		Email:     "test@testtest.test",
+	}
+
+	err := CreateUser(tx, &testUser)
+	require.NoError(t, err)
+
+	var retrievedUser models.User
+	err = tx.Where("id = ?", testUser.ID).First(&retrievedUser).Error
+	require.NoError(t, err)
+
+	user, err := GetUserByEmail(tx, testUser.Email)
+	require.NoError(t, err)
+
+	assert.Equal(t, testUser.Email, user.Email)
+	assert.Equal(t, testUser.FirstName, user.FirstName)
+
+	// rollback create because we don't want it to be in our db
+	tx.Rollback()
+}
+
 func TestGetUsersPaginated(t *testing.T) {
 	db := test.SetupTestDb(t)
 	tx := db.Begin()
