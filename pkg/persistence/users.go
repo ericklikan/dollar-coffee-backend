@@ -10,7 +10,7 @@ func CreateUser(tx *gorm.DB, user *models.User) error {
 }
 
 func GetUserByEmail(tx *gorm.DB, email string) (*models.User, error) {
-	var user *models.User
+	var user models.User
 	err := tx.
 		Where("email = ?", email).
 		First(&user).
@@ -19,25 +19,41 @@ func GetUserByEmail(tx *gorm.DB, email string) (*models.User, error) {
 		return nil, err
 	}
 
-	return user, nil
+	return &user, nil
 }
 
 func GetUsersByID(tx *gorm.DB, userIds []string) (map[string]*models.User, error) {
-	var Users []*models.User
+	var users []*models.User
 	if err := tx.
 		Where("id in (?)", userIds).
-		Find(&Users).Error; err != nil {
+		Find(&users).Error; err != nil {
 		return nil, err
 	}
 	usersMap := make(map[string]*models.User)
-	for _, User := range Users {
-		usersMap[User.ID.String()] = User
+	for _, user := range users {
+		usersMap[user.ID.String()] = user
 	}
 	return usersMap, nil
 }
 
-func GetUsersPaginated(tx *gorm.DB, pageSize int, page int) ([]*models.User, error) {
-	return nil, nil
+func GetUsersPaginated(tx *gorm.DB, pageSize int, page int, role *string) ([]*models.User, error) {
+	var users []*models.User
+	q := tx.
+		Offset(page * pageSize).
+		Limit(pageSize)
+
+	if role != nil {
+		q = q.Where("role = ?", *role)
+	}
+
+	if err := q.Find(&users).Error; err != nil {
+		return nil, err
+	}
+	for _, user := range users {
+		user.Password = ""
+	}
+
+	return users, nil
 }
 
 func UpdateUser(tx *gorm.DB, user *models.User) error {

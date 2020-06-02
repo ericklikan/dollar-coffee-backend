@@ -30,7 +30,7 @@ func (repo *UserRepositoryImpl) GetUsersByIds(tx *gorm.DB, userIds []string) (ma
 }
 
 func (repo *UserRepositoryImpl) GetUsersPaginated(tx *gorm.DB, query *repository_interfaces.UsersPageQuery) ([]*models.User, error) {
-	return persistence.GetUsersPaginated(tx, query.PageSize, query.Page)
+	return persistence.GetUsersPaginated(tx, query.PageSize, query.Page, query.Role)
 }
 
 func (repo *UserRepositoryImpl) UpdateUser(tx *gorm.DB, user *models.User) error {

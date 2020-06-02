@@ -5,11 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/ericklikan/dollar-coffee-backend/pkg/api/util"
 	"github.com/ericklikan/dollar-coffee-backend/pkg/models"
 	repository_interfaces "github.com/ericklikan/dollar-coffee-backend/pkg/repositories/interfaces"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
@@ -67,15 +71,47 @@ func (sr *authSubrouter) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = userInfo.Login(sr.Db)
+	tx := sr.Db.Begin()
+	user, err := sr.userRepository.GetUserByEmail(tx, userInfo.Email)
 	if err != nil {
+		tx.Rollback()
 		logger.WithError(err).Warn()
-		util.Respond(w, http.StatusUnauthorized, util.Message(err.Error()))
+		if err == gorm.ErrRecordNotFound {
+			util.Respond(w, http.StatusNotFound, util.Message(err.Error()))
+			return
+		}
+		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
+		return
+	}
+	tx.Commit()
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(userInfo.Password))
+	if err != nil && err == bcrypt.ErrMismatchedHashAndPassword {
+		util.Respond(w, http.StatusUnauthorized, util.Message("Could not verify user password"))
 		return
 	}
 
-	response := util.Message(fmt.Sprintf("Logged In as %s", userInfo.FirstName))
-	response["token"] = userInfo.Token
+	// Queried user is now valid
+	user.Password = ""
+
+	//Create JWT token
+	tk := &models.Token{
+		UserId: user.ID,
+		Role:   user.Role,
+	}
+
+	token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), tk)
+	tokenString, err := token.SignedString([]byte(os.Getenv("token_password")))
+	if err != nil {
+		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
+		return
+	}
+
+	user.Token = tokenString //Store the token in the response
+
+	response := util.Message(fmt.Sprintf("Logged In as %s", user.FirstName))
+	response["token"] = user.Token
+	response["userId"] = user.ID
 
 	util.Respond(w, http.StatusOK, response)
 }
@@ -93,7 +129,7 @@ func (sr *authSubrouter) RegisterHandler(w http.ResponseWriter, r *http.Request)
 	// - password
 	// - phone (OPTIONAL)
 	decoder := json.NewDecoder(r.Body)
-	var userInfo models.User
+	var userInfo *models.User
 	err := decoder.Decode(&userInfo)
 	if err != nil {
 		logger.WithError(err).Warn()
@@ -104,20 +140,47 @@ func (sr *authSubrouter) RegisterHandler(w http.ResponseWriter, r *http.Request)
 	// make email to lower
 	userInfo.Email = strings.ToLower(userInfo.Email)
 
-	if len(userInfo.FirstName) == 0 || len(userInfo.LastName) == 0 {
+	if err := userInfo.Validate(); err != nil || len(userInfo.FirstName) == 0 || len(userInfo.LastName) == 0 {
 		logger.Warn("you must have a first name and a last name")
 		util.Respond(w, http.StatusBadRequest, util.Message("Invalid first or last name"))
 		return
 	}
 
-	if err := userInfo.Create(sr.Db); err != nil {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(userInfo.Password), bcrypt.DefaultCost)
+	if err != nil {
+		logger.WithError(err).Warn()
+		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
+	}
+	userInfo.Password = string(hashedPassword)
+
+	// Generate UUID
+	userInfo.ID = uuid.New()
+
+	tx := sr.Db.Begin()
+	if err := sr.userRepository.CreateUser(tx, userInfo); err != nil {
+		tx.Rollback()
 		logger.WithError(err).Warn()
 		util.Respond(w, http.StatusInternalServerError, util.Message(err.Error()))
 		return
 	}
+	tx.Commit()
+
+	//Create new JWT token for the newly registered account and default to role type as user
+	tk := &models.Token{
+		UserId: userInfo.ID,
+		Role:   "user",
+	}
+
+	// HS256 is a symmetric key encryption algorithm. The same token password that is used to sign the token is used to verify the token
+	token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), tk)
+	tokenString, _ := token.SignedString([]byte(os.Getenv("token_password")))
+	userInfo.Token = tokenString
+
+	userInfo.Password = "" //delete password
 
 	response := util.Message("Created User")
 	response["token"] = userInfo.Token
+	response["userId"] = userInfo.ID
 
 	util.Respond(w, http.StatusCreated, response)
 }

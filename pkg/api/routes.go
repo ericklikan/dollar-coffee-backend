@@ -24,6 +24,7 @@ func NewServer(router *mux.Router, db *gorm.DB, redis *redis.Client) error {
 	// Repository setups
 	coffeeRepository := repository.NewCoffeeRepository(db, redis)
 	transactionRepository := repository.NewTransactionsRepository(db)
+	userRepository := repository.NewUserRepository(db)
 
 	// module setups
 	err := menu.Setup(server.Router, db, coffeeRepository)
@@ -36,12 +37,12 @@ func NewServer(router *mux.Router, db *gorm.DB, redis *redis.Client) error {
 		return err
 	}
 
-	err = auth.Setup(server.Router, db)
+	err = auth.Setup(server.Router, db, userRepository)
 	if err != nil {
 		return err
 	}
 
-	err = internal.Setup(server.Router, db, coffeeRepository)
+	err = internal.Setup(server.Router, db, coffeeRepository, transactionRepository, userRepository)
 	if err != nil {
 		return err
 	}

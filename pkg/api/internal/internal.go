@@ -20,7 +20,9 @@ const pageSize = 10
 type internalSubrouter struct {
 	util.CommonSubrouter
 
-	coffeeRepository repository_interfaces.CoffeeRepository
+	coffeeRepository   repository_interfaces.CoffeeRepository
+	purchaseRepository repository_interfaces.TransactionsRepository
+	userRepository     repository_interfaces.UserRepository
 }
 
 type UpdateCoffeeRequest struct {
@@ -38,7 +40,11 @@ type PurchaseUpdateRequest struct {
 
 const prefix = "/internal"
 
-func Setup(router *mux.Router, db *gorm.DB, coffeeRepository repository_interfaces.CoffeeRepository) error {
+func Setup(router *mux.Router, db *gorm.DB,
+	coffeeRepository repository_interfaces.CoffeeRepository,
+	purchaseRepository repository_interfaces.TransactionsRepository,
+	userRepository repository_interfaces.UserRepository,
+) error {
 	if db == nil || router == nil {
 		err := errors.New("db or router is nil")
 		log.WithError(err).Warn()
@@ -46,7 +52,9 @@ func Setup(router *mux.Router, db *gorm.DB, coffeeRepository repository_interfac
 	}
 
 	internal := internalSubrouter{
-		coffeeRepository: coffeeRepository,
+		coffeeRepository:   coffeeRepository,
+		userRepository:     userRepository,
+		purchaseRepository: purchaseRepository,
 	}
 	internal.Router = router.
 		PathPrefix(prefix).
@@ -206,12 +214,6 @@ func (sr *internalSubrouter) purchaseHandler(w http.ResponseWriter, r *http.Requ
 	}
 	vars := mux.Vars(r)
 	requestedPurchase := vars["purchaseId"]
-	txId, err := strconv.Atoi(requestedPurchase)
-	if err != nil {
-		logger.Warn("Error parsing id")
-		util.Respond(w, http.StatusBadRequest, util.Message("Error parsing coffee id"))
-		return
-	}
 
 	var reqData PurchaseUpdateRequest
 	decoder := json.NewDecoder(r.Body)
@@ -221,27 +223,33 @@ func (sr *internalSubrouter) purchaseHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	transaction := models.Transaction{}
-	err = sr.Db.Table("transactions").Where("ID = ?", txId).First(&transaction).Error
+	tx := sr.Db.Begin()
+	transactionsMap, err := sr.purchaseRepository.GetTransactionsByIds(tx, []string{requestedPurchase})
 	if err != nil {
+		tx.Rollback()
 		logger.WithError(err).Warn("Database Error")
-
-		if err == gorm.ErrRecordNotFound {
-			util.Respond(w, http.StatusNotFound, util.Message("Not Found"))
-			return
-		}
-
 		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
+		return
+	}
+
+	var transaction *models.Transaction
+	var doesTxExist bool
+	if transaction, doesTxExist = transactionsMap[requestedPurchase]; !doesTxExist {
+		tx.Rollback()
+		logger.WithError(err).Warn("Database Error")
+		util.Respond(w, http.StatusNotFound, util.Message("Transaction not found"))
 		return
 	}
 
 	transaction.AmountPaid = reqData.AmountPaid
 
-	if err := sr.Db.Save(&transaction).Error; err != nil {
+	if err := sr.purchaseRepository.UpdateTransaction(tx, transaction); err != nil {
+		tx.Rollback()
 		logger.WithError(err).Warn("Database Error")
 		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
 		return
 	}
+	tx.Commit()
 
 	util.Respond(w, http.StatusOK, util.Message("Successfully updated purchase"))
 }
@@ -257,20 +265,22 @@ func (sr *internalSubrouter) usersHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	offset := 0
+	pageNum := 0
 	pageNumQuery := r.URL.Query().Get("page")
-	if pageNum, err := strconv.Atoi(pageNumQuery); err == nil {
-		offset = (pageNum - 1) * pageSize
+	if pageNumInt, err := strconv.Atoi(pageNumQuery); err == nil {
+		pageNum = pageNumInt - 1
 	}
 
-	users := make([]*models.User, 0, 10)
-	err := sr.Db.
-		Table("users").
-		Order("created_at DESC").
-		Limit(pageSize).
-		Offset(offset).
-		Find(&users).
-		Error
+	query := repository_interfaces.UsersPageQuery{}
+	query.Page = pageNum
+	query.PageSize = pageSize
+
+	if role := r.URL.Query().Get("role"); role == "admin" || role == "user" {
+		query.Role = &role
+	}
+
+	tx := sr.Db.Begin()
+	users, err := sr.userRepository.GetUsersPaginated(tx, &query)
 	if err != nil {
 		logger.WithError(err).Warn("Error retrieving values")
 		util.Respond(w, http.StatusInternalServerError, util.Message("Internal Error"))
@@ -285,6 +295,7 @@ func (sr *internalSubrouter) usersHandler(w http.ResponseWriter, r *http.Request
 
 	response := util.Message("Users successfully queried")
 	response["users"] = users
+	response["pageSize"] = pageSize
 
 	util.Respond(w, http.StatusOK, response)
 }
