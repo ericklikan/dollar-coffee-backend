@@ -470,5 +470,5 @@ Returns following status codes:
 ## TODO
 
 - Add DB migration scripts
-- Add Unit tests
-- Refactor data layer
+- Add testing
+- Add object storage for image storage

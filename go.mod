@@ -19,6 +19,8 @@ require (
 	github.com/ncw/directio v1.0.5
 	github.com/pkg/errors v0.8.1
 	github.com/sirupsen/logrus v1.4.2
+	github.com/stretchr/testify v1.2.2
 	golang.org/x/crypto v0.0.0-20191002192127-34f69633bfdc
+	google.golang.org/appengine v1.4.0
 	gopkg.in/go-playground/validator.v9 v9.30.0
 )
