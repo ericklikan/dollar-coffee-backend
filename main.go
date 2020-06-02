@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 
 	routes "github.com/ericklikan/dollar-coffee-backend/pkg/api"
@@ -114,11 +115,13 @@ func setupDatabase() (*gorm.DB, error) {
 }
 
 func setupCache() *redis.Client {
-	redisAddr := os.Getenv("REDIS_ADDRESS")
-	redisPW := os.Getenv("REDIS_PASSWORD")
-	return redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: redisPW,
+	redisEnv := os.Getenv("REDIS_URL")
+	redisUrl, _ := url.Parse(redisEnv)
+	redisPassword, _ := redisUrl.User.Password()
+	redisOptions := redis.Options{
+		Addr:     redisUrl.Host,
+		Password: redisPassword,
 		DB:       0,
-	})
+	}
+	return redis.NewClient(&redisOptions)
 }
