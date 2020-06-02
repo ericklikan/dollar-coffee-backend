@@ -97,6 +97,6 @@ func (router *MenuSubrouter) CoffeeHandler(w http.ResponseWriter, r *http.Reques
 
 	util.Respond(w, http.StatusOK, map[string]interface{}{
 		"coffees":   res,
-		"page_size": pageSize,
+		"page_size": len(res),
 	})
 }

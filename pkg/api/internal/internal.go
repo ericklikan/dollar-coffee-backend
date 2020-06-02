@@ -303,7 +303,7 @@ func (sr *internalSubrouter) usersHandler(w http.ResponseWriter, r *http.Request
 
 	response := util.Message("Users successfully queried")
 	response["users"] = users
-	response["pageSize"] = len(users)
+	response["page_size"] = len(users)
 
 	util.Respond(w, http.StatusOK, response)
 }

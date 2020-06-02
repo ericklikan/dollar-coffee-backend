@@ -232,7 +232,7 @@ func (sr *PurchaseSubRouter) PurchaseHistoryHandler(w http.ResponseWriter, r *ht
 
 	response := util.Message("Purchases successfully queried")
 	response["purchases"] = purchases
-	response["pageSize"] = pageSize
+	response["page_size"] = pageSize
 
 	util.Respond(w, http.StatusOK, response)
 }
