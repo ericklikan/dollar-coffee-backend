@@ -4,20 +4,28 @@ This repository contains the source code for the REST API for Dollar Coffee Shop
 
 ## Installation and Start Up
 
-### Required Libraries
+### Libraries
+
+#### Required
 
 - golang.org/doc/install (1.13.0)
 - postgresql.org/docs/11/tutorial-start.html (11.5)
+
+#### Optional
+
+- https://redis.io/ 
 
 ### Instructions
 
 1. [Set up a postgresql database](https://www.postgresql.org/docs/11/tutorial-createdb.html) with a user/password. This database can be hosted on your machine as localhost or externally.
 
-2. Change your directory to the root of this repository and create a `.env` file using `.example.env` as a template. Using the database information you set up previously, create the database URL using `postgresql://{db_user}:{db_password}@{host}:{port}/{db_name}`. If you're using your local machine as the database, use host: `localhost` and port: `5432` (default)
+2. Change your directory to the root of this repository and create a `.env` file using `.example.env` as a template. Using the database information you set up previously, create the database URL using `postgresql://{db_user}:{db_password}@{host}:{port}/{db_name}`. If you're using your local machine as the database, use host: `localhost` and port: `5432` (default).
 
-3. When editing the `.env` file, you should also create a secure `token_password` that should not be shared. This password will be used to sign jwts issued by the `/auth/` module.
+3. For optional redis caching, add the `REDIS_URL` environment variable.
 
-4. Run the following command from the repository root to install dependencies:
+4. When editing the `.env` file, you should also create a secure `token_password` that should not be shared. This password will be used to sign jwts issued by the `/auth/` module.
+
+5. Run the following command from the repository root to install dependencies:
 
    ```bash
    make deps
@@ -35,7 +43,7 @@ This repository contains the source code for the REST API for Dollar Coffee Shop
    make run
    ```
 
-Note: when running the app, if the environment variable `PORT` is not set, it will default to run on port 5000
+Note: when running the app, if the environment variable `PORT` is not set, it will default to run on port 5000 which will trigger debug mode (debug level logging and SQL logging)
 
 ## API Documentation
 
@@ -97,6 +105,7 @@ This endpoint will issue a JWT with user id and user role
 {
     "message": string,
     "token"  : string (on success)
+    "userId" : string (on success)
 }
 ```
 
@@ -109,17 +118,57 @@ Returns following status codes:
 | 401         | `UNAUTHORIZED`          |
 | 500         | `INTERNAL SERVER ERROR` |
 
+#### `PATCH /auth/users/{userId}`
+
+This endpoint will update user info
+
+Required Headers:
+
+| Header          | Description           |
+| :-------------- | :-------------------- |
+| `Authorization` | `Bearer {Issued JWT}` |
+
+##### Request Body
+
+```javascript
+{
+    "firstName": string (optional),
+    "lastName" : string (optional),
+    "email"    : string (optional),
+    "password" : string (optional),
+    "phone"    : string (optional)
+}
+```
+
+##### Response
+
+```javascript
+{
+    "message": string,
+}
+```
+
+Returns following status codes:
+
+| Status Code | Description             |
+| :---------- | :---------------------- |
+| 200         | `CREATED`               |
+| 400         | `BAD REQUEST`           |
+| 404         | `NOT FOUND`             |
+| 500         | `INTERNAL SERVER ERROR` |
+
 ### `/menu`
 
-This module is responsible for retrieving the coffees and items that are available in the store
+This request retrieves the coffees beans page that are available in the store
 
 #### `GET /menu`
 
 Parameters:
 
-| Parameter | Description          |
-| :-------- | :------------------- |
-| `page`    | Optional page number |
+| Parameter  | Description          |
+| :--------- | :------------------- |
+| `page`     | Optional page number |
+| `in_stock` | In stock filter      |
 
 ##### Response
 
@@ -229,6 +278,46 @@ Required Headers:
 | Header          | Description                    |
 | :-------------- | :----------------------------- |
 | `Authorization` | `Bearer {Issued JWT as admin}` |
+
+#### `GET /internal/users`
+
+Retrieves a page from purchase history for userId
+
+Parameters:
+
+| Parameter | Description                              |
+| :-------- | :--------------------------------------- |
+| `page`    | Optional page number                     |
+| `role`    | Optional filter for `admin`/`user` roles |
+
+##### Response
+
+```javascript
+{
+    "message": string,
+    "users": [
+        {
+            "ID"         : string,
+            "CreatedAt"  : string,
+            "UpdatedAt"  : string,
+            "DeletedAt"  : string,
+            "firstName"  : string,
+            "lastName"   : string,
+            "email"      : string,
+            "phoneNumber": string,
+            "Role"       : string
+        },
+    ]
+}
+```
+
+Returns following status codes:
+
+| Status Code | Description             |
+| :---------- | :---------------------- |
+| 200         | `OK`                    |
+| 401         | `UNAUTHORIZED`          |
+| 500         | `INTERNAL SERVER ERROR` |
 
 #### `POST /internal/coffee`
 
@@ -347,10 +436,39 @@ Returns following status codes:
 | 403         | `FORBIDDEN`             |
 | 500         | `INTERNAL SERVER ERROR` |
 
+#### `PATCH /internal/users/{userId}/role`
+
+Updates the user role to `admin` or `user`
+
+##### Request Body
+
+```javascript
+{
+    "role": string,
+}
+```
+
+##### Response
+
+```javascript
+{
+    "message": string
+}
+```
+
+Returns following status codes:
+
+| Status Code | Description             |
+| :---------- | :---------------------- |
+| 200         | `OK`                    |
+| 400         | `BAD REQUEST`           |
+| 401         | `UNAUTHORIZED`          |
+| 403         | `FORBIDDEN`             |
+| 500         | `INTERNAL SERVER ERROR` |
+
+
 ## TODO
 
 - Add DB migration scripts
 - Add Unit tests
-- Add internal endpoint to get information for all purchases
-- Add internal endpoint to get all users
 - Refactor data layer
